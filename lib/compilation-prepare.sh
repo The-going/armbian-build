@@ -15,25 +15,32 @@
 compilation_prepare()
 {
 
-	# Packaging patch for modern kernels should be one for all. 
+	# Packaging patch for modern kernels should be one for all.
 	# Currently we have it per kernel family since we can't have one
-	# Maintaining one from central location starting with 5.3+
+	# Maintaining one from central location starting with 5.4+
 	# Temporally set for new "default->legacy,next->current" family naming
 
-	if linux-version compare "${version}" ge 5.10; then
-		display_alert "Adjusting" "packaging" "info"
+	if linux-version compare "${version}" ge 5.4; then
+		display_alert "Adjusting" "NEW armbian packaging" "info"
 		cd "$kerneldir" || exit
-		process_patch_file "${SRC}/patch/misc/general-packaging-5.10.y.patch" "applying"
-	elif linux-version compare "${version}" ge 5.8.17 \
-		&& linux-version compare "${version}" le 5.9 \
-		|| linux-version compare "${version}" ge 5.9.2; then
-			display_alert "Adjusting" "packaging" "info"
-			cd "$kerneldir" || exit
-			process_patch_file "${SRC}/patch/misc/general-packaging-5.8-9.y.patch" "applying"
-	elif linux-version compare "${version}" ge 5.6; then
-		display_alert "Adjusting" "packaging" "info"
-		cd "$kerneldir" || exit
-		process_patch_file "${SRC}/patch/misc/general-packaging-5.6.y.patch" "applying"
+		(
+			sed -i -e '
+				 s/^KBUILD_IMAGE	:= \$(boot)\/Image\.gz$/KBUILD_IMAGE	:= \$(boot)\/Image/
+				 ' arch/arm64/Makefile
+			rm -f scripts/package/{builddeb,mkdebian}
+			sed -e "
+				s/@BRANCH@/BRANCH=$BRANCH/
+				s/@LOCALVERSION@/LOCALVERSION=\"-$LINUXFAMILY\"/
+				s/@KDEB_PKGVERSION@/KDEB_PKGVERSION=$REVISION/
+			" ${SRC}/packages/armbian/builddeb >scripts/package/builddeb
+			sed -e "
+				s/@BRANCH@/BRANCH=$BRANCH/
+				s/@LOCALVERSION@/LOCALVERSION=\"-$LINUXFAMILY\"/
+				s/@KDEB_PKGVERSION@/KDEB_PKGVERSION=$REVISION/
+			" ${SRC}/packages/armbian/mkdebian >scripts/package/mkdebian
+			chmod 755 scripts/package/{builddeb,mkdebian}
+		)
+
 	elif linux-version compare "${version}" ge 5.3; then
 		display_alert "Adjusting" "packaging" "info"
 		cd "$kerneldir" || exit

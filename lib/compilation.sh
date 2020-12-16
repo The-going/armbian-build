@@ -12,6 +12,7 @@
 # Functions:
 # compile_atf
 # compile_uboot
+# pkg_linux_source
 # compile_kernel
 # compile_firmware
 # compile_armbian-config
@@ -273,7 +274,7 @@ compile_uboot()
 	[[ -n $atftempdir && -f $atftempdir/license.md ]] && cp "${atftempdir}/license.md" "$uboottempdir/${uboot_name}/usr/lib/u-boot/LICENSE.atf"
 
 	display_alert "Building deb" "${uboot_name}.deb" "info"
-	fakeroot dpkg-deb -b "$uboottempdir/${uboot_name}" "$uboottempdir/${uboot_name}.deb" >> "${DEST}"/debug/output.log 2>&1
+	fakeroot dpkg-deb -b "$uboottempdir/${uboot_name}" "$uboottempdir/${uboot_name}.deb" |& tee -a $DEST/debug/pkg.log
 	rm -rf "$uboottempdir/${uboot_name}"
 	[[ -n $atftempdir ]] && rm -rf "${atftempdir}"
 
@@ -283,18 +284,114 @@ compile_uboot()
 	rm -rf "$uboottempdir"
 }
 
+pkg_linux_source()
+{
+	# create linux-source package - with already patched sources
+	local kerneldir version tmp_dir sources_pkg_dir
+	kerneldir=$1
+	version=$2
+
+	tmp_dir=$(mktemp -d)
+	chmod 766 ${tmp_dir}
+	trap "rm -rf \"${tmp_dir}\" ; exit 0" 0 1 2 3 15
+	sources_pkg_dir=${CHOSEN_KSRC}-${version}_${REVISION}_all
+
+	mkdir -p ${tmp_dir}/${sources_pkg_dir}/DEBIAN
+	mkdir -p ${tmp_dir}/${sources_pkg_dir}/usr/src/linux-source-${version}-${LINUXFAMILY}
+	mkdir -p ${tmp_dir}/${sources_pkg_dir}/usr/share/doc/linux-source-${version}-${LINUXFAMILY}
+
+	display_alert "Syncing sources for the linux-source package"
+	dstsync=${tmp_dir}/${sources_pkg_dir}/usr/src/linux-source-${version}-${LINUXFAMILY}
+
+	# one-line progress  --info=progress2
+
+	EXC="\
+	--exclude=.git/ \
+	--exclude=.tmp/ \
+	--exclude=debian/ \
+	"
+	INC="\
+	--include=core/
+	"
+
+	rsync --info=progress2 $INC $EXC -aCh \
+		${kerneldir}/ \
+		$dstsync
+
+	display_alert "Create linux-source package"
+
+	cp COPYING ${tmp_dir}/${sources_pkg_dir}/usr/share/doc/linux-source-${version}-${LINUXFAMILY}/LICENSE
+
+	xz < .config > "${tmp_dir}/${sources_pkg_dir}/usr/src/${LINUXCONFIG}_${version}_${REVISION}_config.xz"
+
+	# hack for deb builder. To pack what's missing in headers pack.
+	cp $SRC/patch/misc/headers-debian-byteshift.patch $dstsync/
+
+	cat <<-EOF > "${tmp_dir}/${sources_pkg_dir}/DEBIAN/control"
+	Package: linux-source-${version}-${BRANCH}-${LINUXFAMILY}
+	Version: ${version}-${BRANCH}-${LINUXFAMILY}+${REVISION}
+	Architecture: all
+	Maintainer: $MAINTAINER <$MAINTAINERMAIL>
+	Section: kernel
+	Priority: optional
+	Depends: binutils, coreutils
+	Provides: linux-source, linux-source-${version}-${LINUXFAMILY}
+	Recommends: gcc, make
+	Description: This package provides the source code for the Linux kernel $version
+	EOF
+
+	cat <<-EOF > "${tmp_dir}/$sources_pkg_dir/DEBIAN/postinst"
+	#!/bin/bash
+	if [ -d /usr/src/linux-source-${version}-${LINUXFAMILY} ]; then
+	    cd /usr/src/
+	    if test -L linux; then rm -f linux; fi
+	    ln -rsT linux-source-${version}-${LINUXFAMILY} linux
+	    if test -d /lib/modules/${version}-${LINUXFAMILY}; then
+		cd /lib/modules/${version}-${LINUXFAMILY}
+		ln -sT /usr/src/linux-source-${version}-${LINUXFAMILY} source
+	    fi
+	fi
+	EOF
+
+	cat <<-EOF > "${tmp_dir}/$sources_pkg_dir/DEBIAN/prerm"
+	#!/bin/bash
+	if test -L /lib/modules/${version}-${LINUXFAMILY}/source; then
+	    rm -f /lib/modules/${version}-${LINUXFAMILY}/source
+	fi
+	if test -L /usr/src/linux; then
+	    rm -f /usr/src/linux
+	fi
+	rm -rf /usr/src/linux-source-${version}-${LINUXFAMILY}/*
+	EOF
+
+	chmod +x ${tmp_dir}/${sources_pkg_dir}/DEBIAN/{postinst,prerm}
+
+	fakeroot dpkg-deb -z0 -b "${tmp_dir}/${sources_pkg_dir}" \
+			 "${tmp_dir}/linux-source-${version}-${BRANCH}-${LINUXFAMILY}.deb" |& \
+			 tee -a $DEST/debug/pkg.log
+
+	# mv ${sources_pkg_dir}.deb ${DEB_STORAGE}/
+	rsync --remove-source-files -rq ${tmp_dir}/"linux-source-${version}-${BRANCH}-${LINUXFAMILY}.deb" "${DEB_STORAGE}/" || \
+	exit_with_error "Failed moving kernel DEBs"
+
+	rm -rf "${tmp_dir}"
+}
+
 compile_kernel()
 {
 	if [[ $CLEAN_LEVEL == *make* ]]; then
 		display_alert "Cleaning" "$LINUXSOURCEDIR" "info"
-		(cd "${SRC}/cache/sources/${LINUXSOURCEDIR}"; make ARCH="${ARCHITECTURE}" clean >/dev/null 2>&1)
+		(
+			make -C "${SRC}/cache/sources/${LINUXSOURCEDIR}" \
+				 ARCH="${ARCHITECTURE}" clean >/dev/null 2>&1
+		)
 	fi
 
+	local kerneldir
 	if [[ $USE_OVERLAYFS == yes ]]; then
-		local kerneldir
 		kerneldir=$(overlayfs_wrapper "wrap" "$SRC/cache/sources/$LINUXSOURCEDIR" "kernel_${LINUXFAMILY}_${BRANCH}")
 	else
-		local kerneldir="$SRC/cache/sources/$LINUXSOURCEDIR"
+		kerneldir="$SRC/cache/sources/$LINUXSOURCEDIR"
 	fi
 	cd "${kerneldir}" || exit
 
@@ -315,27 +412,12 @@ compile_kernel()
 
 	advanced_patch "kernel" "$KERNELPATCHDIR" "$BOARD" "" "$BRANCH" "$LINUXFAMILY-$BRANCH"
 
-        # create patch for manual source changes in debug mode
-        [[ $CREATE_PATCHES == yes ]] && userpatch_create "kernel"
+	# create patch for manual source changes in debug mode
+	[[ $CREATE_PATCHES == yes ]] && userpatch_create "kernel"
 
-        # re-read kernel version after patching
-        local version
-        version=$(grab_version "$kerneldir")
+	# re-read kernel version after patching
+	version=$(grab_version "$kerneldir")
 
-	# create linux-source package - with already patched sources
-	local sources_pkg_dir tmp_src_dir
-	tmp_src_dir=$(mktemp -d)
-	trap "rm -rf \"${tmp_src_dir}\" ; exit 0" 0 1 2 3 15
-	sources_pkg_dir=${tmp_src_dir}/${CHOSEN_KSRC}_${REVISION}_all
-	mkdir -p "${sources_pkg_dir}"/usr/src/ "${sources_pkg_dir}"/usr/share/doc/linux-source-${version}-${LINUXFAMILY} "${sources_pkg_dir}"/DEBIAN
-
-	if [[ $BUILD_KSRC != no ]]; then
-		display_alert "Compressing sources for the linux-source package"
-		tar cp --directory="$kerneldir" --exclude='./.git/' --owner=root . \
-			 | pv -p -b -r -s "$(du -sb "$kerneldir" --exclude=='./.git/' | cut -f1)" \
-			| pixz -4 > "${sources_pkg_dir}/usr/src/linux-source-${version}-${LINUXFAMILY}.tar.xz"
-		cp COPYING "${sources_pkg_dir}/usr/share/doc/linux-source-${version}-${LINUXFAMILY}/LICENSE"
-	fi
 	display_alert "Compiling $BRANCH kernel" "$version" "info"
 
 	local toolchain
@@ -395,7 +477,10 @@ compile_kernel()
 		fi
 	fi
 
-	xz < .config > "${sources_pkg_dir}/usr/src/${LINUXCONFIG}_${version}_${REVISION}_config.xz"
+	# create linux-source package - with already patched sources
+	if [[ $BUILD_KSRC != no ]]; then
+		pkg_linux_source "$kerneldir" "$version"
+	fi
 
 	echo -e "\n\t== kernel ==\n" >> "${DEST}"/debug/compilation.log
 	eval CCACHE_BASEDIR="$(pwd)" env PATH="${toolchain}:${PATH}" \
@@ -423,7 +508,7 @@ compile_kernel()
 	display_alert "Creating packages"
 
 	# produce deb packages: image, headers, firmware, dtb
-	echo -e "\n\t== deb packages: image, headers, firmware, dtb ==\n" >> "${DEST}"/debug/compilation.log
+	echo -e "\n\t== deb packages: image, headers, firmware, dtb ==\n" >> "${DEST}"/debug/pkg.log
 	eval CCACHE_BASEDIR="$(pwd)" env PATH="${toolchain}:${PATH}" \
 		'make $CTHREADS $kernel_packing \
 		KDEB_PKGVERSION=$REVISION \
@@ -433,29 +518,10 @@ compile_kernel()
 		ARCH=$ARCHITECTURE \
 		DEBFULLNAME="$MAINTAINER" \
 		DEBEMAIL="$MAINTAINERMAIL" \
-		CROSS_COMPILE="$CCACHE $KERNEL_COMPILER" 2>>$DEST/debug/compilation.log' \
-		${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/debug/compilation.log'} \
+		CROSS_COMPILE="$CCACHE $KERNEL_COMPILER" 2>>$DEST/debug/pkg.log' \
+		${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/debug/pkg.log'} \
 		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Creating kernel packages..." $TTY_Y $TTY_X'} \
 		${OUTPUT_VERYSILENT:+' >/dev/null 2>/dev/null'}
-
-	cat <<-EOF > "${sources_pkg_dir}"/DEBIAN/control
-	Package: linux-source-${version}-${BRANCH}-${LINUXFAMILY}
-	Version: ${version}-${BRANCH}-${LINUXFAMILY}+${REVISION}
-	Architecture: all
-	Maintainer: $MAINTAINER <$MAINTAINERMAIL>
-	Section: kernel
-	Priority: optional
-	Depends: binutils, coreutils
-	Provides: linux-source, linux-source-${version}-${LINUXFAMILY}
-	Recommends: gcc, make
-	Description: This package provides the source code for the Linux kernel $version
-	EOF
-
-	if [[ $BUILD_KSRC != no ]]; then
-		fakeroot dpkg-deb -z0 -b "${sources_pkg_dir}" "${sources_pkg_dir}.deb"
-		rsync --remove-source-files -rq "${sources_pkg_dir}.deb" "${DEB_STORAGE}/"
-	fi
-	rm -rf "${tmp_src_dir}"
 
 	cd .. || exit
 	# remove firmare image packages here - easier than patching ~40 packaging scripts at once
@@ -524,7 +590,7 @@ compile_firmware()
 	cd "${firmwaretempdir}" || exit
 	# pack
 	mv "armbian-firmware${FULL}" "armbian-firmware${FULL}_${REVISION}_all"
-	fakeroot dpkg -b "armbian-firmware${FULL}_${REVISION}_all" >> "${DEST}"/debug/install.log 2>&1
+	fakeroot dpkg -b "armbian-firmware${FULL}_${REVISION}_all" |& tee -a "${DEST}"/debug/pkg.log
 	mv "armbian-firmware${FULL}_${REVISION}_all" "armbian-firmware${FULL}"
 	rsync -rq "armbian-firmware${FULL}_${REVISION}_all.deb" "${DEB_STORAGE}/"
 
