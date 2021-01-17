@@ -140,6 +140,7 @@ create_build_script ()
 	export DEBFULLNAME="$MAINTAINER"
 	export DEBEMAIL="$MAINTAINERMAIL"
 	$(declare -f display_alert)
+	NCPU="$(grep processor /proc/cpuinfo | wc -l)"
 	cd /root/build
 	if [[ -n "${package_builddeps}" ]]; then
 		# can be replaced with mk-build-deps
@@ -176,7 +177,7 @@ create_build_script ()
 
 	cat <<-EOF >> "${target_dir}"/root/build.sh
 	display_alert "Building package ${package_name}"
-	dpkg-buildpackage -b -uc -us -j2
+	dpkg-buildpackage -b -uc -us -j"\$NCPU"
 	if [[ \$? -eq 0 ]]; then
 		cd /root/build
 		# install in chroot if other libraries depend on them
