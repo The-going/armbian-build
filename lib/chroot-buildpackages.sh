@@ -209,10 +209,13 @@ chroot_build_packages()
 		# if user-built image compile only for selected arch/release
 		target_release="${RELEASE}"
 		target_arch="${ARCH}"
+		[[ -z $BUILD_PKGS_DIR ]] && BUILD_PKGS_DIR="packages/extras-buildpkgs"
+		[[ -z $TARGET_PKG_NAME ]] && display_alert "Trying to collect everything: " "$(ls ${SRC}/${BUILD_PKGS_DIR}/*.conf)"
 	else
 		# only make packages for recent releases. There are no changes on older
 		target_release="stretch bionic buster bullseye groovy focal"
 		target_arch="armhf arm64"
+		BUILD_PKGS_DIR="packages/extras-buildpkgs"
 	fi
 
 	for release in $target_release; do
@@ -242,7 +245,7 @@ chroot_build_packages()
 				date +%s > "${t}"
 			fi
 
-			for plugin in "${SRC}"/packages/extras-buildpkgs/*.conf; do
+			for plugin in "${SRC}"/${BUILD_PKGS_DIR}/*${TARGET_PKG_NAME}.conf; do
 				unset package_name package_repo package_ref package_builddeps package_install_chroot package_install_target \
 					package_upstream_version needs_building plugin_target_dir package_component "package_builddeps_${release}"
 				source "${plugin}"
@@ -288,7 +291,7 @@ chroot_build_packages()
 					-D "${target_dir}" \
 					--tmpfs=/root/build \
 					--tmpfs=/tmp:mode=777 \
-					--bind-ro "${SRC}"/packages/extras-buildpkgs/:/root/overlay \
+					--bind-ro "${SRC}"/${BUILD_PKGS_DIR}/:/root/overlay \
 					--bind-ro "${SRC}"/cache/sources/extra/:/root/sources /bin/bash -c "/root/build.sh" 2>>$DEST/debug/buildpkg.log \
 					${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/debug/buildpkg.log'}
 				if [[ ${PIPESTATUS[0]} -eq 2 ]]; then
@@ -299,7 +302,10 @@ chroot_build_packages()
 				mv "${target_dir}"/root/*.deb "${plugin_target_dir}" 2>/dev/null
 			done
 			# cleanup for distcc
-			kill "$(<"/var/run/distcc/${release}-${arch}.pid")"
+			(
+				echo -e "\033[1;35mcleanup for distcc\033[0m"
+				kill "$(<"/var/run/distcc/${release}-${arch}.pid")"
+			) >>$DEST/debug/buildpkg.log
 		done
 	done
 	if [[ ${#built_ok[@]} -gt 0 ]]; then
@@ -328,11 +334,11 @@ chroot_installpackages_local()
 	aptly -config="${conf}" repo add temp "${DEB_STORAGE}/extra/${RELEASE}-desktop/"
 	aptly -config="${conf}" repo add temp "${DEB_STORAGE}/extra/${RELEASE}-utils/"
 	# -gpg-key="925644A6"
-	aptly -keyring="${SRC}/packages/extras-buildpkgs/buildpkg-public.gpg" -secret-keyring="${SRC}/packages/extras-buildpkgs/buildpkg.gpg" -batch=true -config="${conf}" \
+	aptly -keyring="${SRC}/${BUILD_PKGS_DIR}/buildpkg-public.gpg" -secret-keyring="${SRC}/${BUILD_PKGS_DIR}/buildpkg.gpg" -batch=true -config="${conf}" \
 		 -gpg-key="925644A6" -passphrase="testkey1234" -component=temp -distribution="${RELEASE}" publish repo temp
 	aptly -config="${conf}" -listen=":8189" serve &
 	local aptly_pid=$!
-	cp "${SRC}"/packages/extras-buildpkgs/buildpkg.key "${SDCARD}"/tmp/buildpkg.key
+	cp "${SRC}"/${BUILD_PKGS_DIR}/buildpkg.key "${SDCARD}"/tmp/buildpkg.key
 	cat <<-'EOF' > "${SDCARD}"/etc/apt/preferences.d/90-armbian-temp.pref
 	Package: *
 	Pin: origin "localhost"
@@ -352,7 +358,7 @@ chroot_installpackages()
 	local remote_only=$1
 	local install_list=""
 	display_alert "Installing additional packages" "EXTERNAL_NEW"
-	for plugin in "${SRC}"/packages/extras-buildpkgs/*.conf; do
+	for plugin in "${SRC}"/${BUILD_PKGS_DIR}/*${TARGET_PKG_NAME}.conf; do
 		source "${plugin}"
 		if [[ $(type -t package_checkinstall) == function ]] && package_checkinstall; then
 			install_list="$install_list $package_install_target"
