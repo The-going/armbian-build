@@ -192,6 +192,7 @@ Description: Linux kernel, version $version
 
 Package: $kernel_headers_packagename
 Architecture: $debarch
+Provides: linux-headers, linux-headers-$version
 Depends: make, gcc, libc6-dev, bison, flex, libssl-dev
 Description: Linux kernel headers for $version on $debarch
  This package provides kernel header files for $version on $debarch
@@ -229,11 +230,15 @@ cat <<EOF > debian/rules
 
 srctree ?= .
 
-build:
+build-indep:
+build-arch:
 	\$(MAKE) KERNELRELEASE=${version} ARCH=${ARCH} \
 	KBUILD_BUILD_VERSION=${revision} -f \$(srctree)/Makefile
 
-binary-arch:
+build: build-arch
+
+binary-indep:
+binary-arch: build-arch
 	\$(MAKE) KERNELRELEASE=${version} ARCH=${ARCH} \
 	KBUILD_BUILD_VERSION=${revision} -f \$(srctree)/Makefile intdeb-pkg
 

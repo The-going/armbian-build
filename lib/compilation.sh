@@ -319,6 +319,15 @@ pkg_linux_source()
 		$dstsync
 
 	display_alert "Create linux-source package"
+	# DEBUG
+	echo -e "KERNEL_IMAGE_TYPE=$KERNEL_IMAGE_TYPE" >> "${DEST}"/debug/pkg.log
+	echo -e "ARCHITECTURE=$ARCHITECTURE" >> "${DEST}"/debug/pkg.log
+	echo -e "ARCH=$ARCH" >> "${DEST}"/debug/pkg.log
+	echo -e "version=$version" >> "${DEST}"/debug/pkg.log
+	echo -e "BRANCH=$BRANCH" >> "${DEST}"/debug/pkg.log
+	echo -e "LINUXFAMILY=$LINUXFAMILY" >> "${DEST}"/debug/pkg.log
+	echo -e "REVISION=$REVISION" >> "${DEST}"/debug/pkg.log
+	# DEBUG
 
 	cp COPYING ${tmp_dir}/${sources_pkg_dir}/usr/share/doc/linux-source-${version}-${LINUXFAMILY}/LICENSE
 
@@ -483,6 +492,18 @@ compile_kernel()
 	fi
 
 	echo -e "\n\t== kernel ==\n" >> "${DEST}"/debug/compilation.log
+	# DEBUG
+	echo -e "CROSS_COMPILE=$CROSS_COMPILE" >> "${DEST}"/debug/pkg.log
+	echo -e "LINUXFAMILY=$LINUXFAMILY" >> "${DEST}"/debug/pkg.log
+	echo -e "KERNEL_IMAGE_TYPE=$KERNEL_IMAGE_TYPE" >> "${DEST}"/debug/pkg.log
+	echo -e "REVISION=$REVISION" >> "${DEST}"/debug/pkg.log
+	echo -e "ARCHITECTURE=$ARCHITECTURE" >> "${DEST}"/debug/pkg.log
+	echo -e "ARCH=$ARCH" >> "${DEST}"/debug/pkg.log
+	echo -e "BRANCH=$BRANCH" >> "${DEST}"/debug/pkg.log
+	echo -e "MAINTAINER=$MAINTAINER" >> "${DEST}"/debug/pkg.log
+	echo -e "MAINTAINERMAIL=$MAINTAINERMAIL" >> "${DEST}"/debug/pkg.log
+	echo -e "ARCH=$ARCH" >> "${DEST}"/debug/pkg.log
+
 	eval CCACHE_BASEDIR="$(pwd)" env PATH="${toolchain}:${PATH}" \
 		'make $CTHREADS ARCH=$ARCHITECTURE \
 		CROSS_COMPILE="$CCACHE $KERNEL_COMPILER" \
