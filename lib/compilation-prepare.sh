@@ -30,13 +30,9 @@ compilation_prepare()
 			rm -f scripts/package/{builddeb,mkdebian}
 			sed -e "
 				s/@BRANCH@/BRANCH=$BRANCH/
-				s/@LOCALVERSION@/LOCALVERSION=\"-$LINUXFAMILY\"/
-				s/@KDEB_PKGVERSION@/KDEB_PKGVERSION=$REVISION/
 			" ${SRC}/packages/armbian/builddeb >scripts/package/builddeb
 			sed -e "
 				s/@BRANCH@/BRANCH=$BRANCH/
-				s/@LOCALVERSION@/LOCALVERSION=\"-$LINUXFAMILY\"/
-				s/@KDEB_PKGVERSION@/KDEB_PKGVERSION=$REVISION/
 			" ${SRC}/packages/armbian/mkdebian >scripts/package/mkdebian
 			chmod 755 scripts/package/{builddeb,mkdebian}
 		)

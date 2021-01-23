@@ -331,14 +331,14 @@ pkg_linux_source()
 
 	cp COPYING ${tmp_dir}/${sources_pkg_dir}/usr/share/doc/linux-source-${version}-${LINUXFAMILY}/LICENSE
 
-	xz < .config > "${tmp_dir}/${sources_pkg_dir}/usr/src/${LINUXCONFIG}_${version}_${REVISION}_config.xz"
+	xz < .config > "${tmp_dir}/${sources_pkg_dir}/usr/src/linux-source-${version}-${LINUXFAMILY}/${LINUXCONFIG}_${version}_${REVISION}_config.xz"
 
 	# hack for deb builder. To pack what's missing in headers pack.
 	cp $SRC/patch/misc/headers-debian-byteshift.patch $dstsync/
 
 	cat <<-EOF > "${tmp_dir}/${sources_pkg_dir}/DEBIAN/control"
-	Package: linux-source-${version}-${BRANCH}-${LINUXFAMILY}
-	Version: ${version}-${BRANCH}-${LINUXFAMILY}+${REVISION}
+	Package: linux-source-${version}-${LINUXFAMILY}-${BRANCH}
+	Version: ${version}-${LINUXFAMILY}
 	Architecture: all
 	Maintainer: $MAINTAINER <$MAINTAINERMAIL>
 	Section: kernel
@@ -376,11 +376,11 @@ pkg_linux_source()
 	chmod +x ${tmp_dir}/${sources_pkg_dir}/DEBIAN/{postinst,prerm}
 
 	fakeroot dpkg-deb -z0 -b "${tmp_dir}/${sources_pkg_dir}" \
-			 "${tmp_dir}/linux-source-${version}-${BRANCH}-${LINUXFAMILY}.deb" |& \
+			 "${tmp_dir}/linux-source-${version}-${LINUXFAMILY}-${BRANCH}.deb" |& \
 			 tee -a $DEST/debug/pkg.log
 
 	# mv ${sources_pkg_dir}.deb ${DEB_STORAGE}/
-	rsync --remove-source-files -rq ${tmp_dir}/"linux-source-${version}-${BRANCH}-${LINUXFAMILY}.deb" "${DEB_STORAGE}/" || \
+	rsync --remove-source-files -rq ${tmp_dir}/"linux-source-${version}-${LINUXFAMILY}-${BRANCH}.deb" "${DEB_STORAGE}/" || \
 	exit_with_error "Failed moving kernel DEBs"
 
 	rm -rf "${tmp_dir}"
@@ -420,6 +420,11 @@ compile_kernel()
 	compilation_prepare
 
 	advanced_patch "kernel" "$KERNELPATCHDIR" "$BOARD" "" "$BRANCH" "$LINUXFAMILY-$BRANCH"
+
+	echo "" >> "${DEST}"/debug/pkg.log
+	echo -e "KERNELPATCHDIR=$KERNELPATCHDIR" >> "${DEST}"/debug/pkg.log
+	echo -e "\$LINUXFAMILY-\$BRANCH=$LINUXFAMILY-$BRANCH" >> "${DEST}"/debug/pkg.log
+	echo "" >> "${DEST}"/debug/pkg.log
 
 	# create patch for manual source changes in debug mode
 	[[ $CREATE_PATCHES == yes ]] && userpatch_create "kernel"
@@ -503,17 +508,20 @@ compile_kernel()
 	echo -e "MAINTAINER=$MAINTAINER" >> "${DEST}"/debug/pkg.log
 	echo -e "MAINTAINERMAIL=$MAINTAINERMAIL" >> "${DEST}"/debug/pkg.log
 	echo -e "ARCH=$ARCH" >> "${DEST}"/debug/pkg.log
+	echo -e "SRC_LOADADDR=$SRC_LOADADDR" >> "${DEST}"/debug/pkg.log
+	echo "" >> "${DEST}"/debug/pkg.log
 
 	eval CCACHE_BASEDIR="$(pwd)" env PATH="${toolchain}:${PATH}" \
 		'make $CTHREADS ARCH=$ARCHITECTURE \
 		CROSS_COMPILE="$CCACHE $KERNEL_COMPILER" \
 		$SRC_LOADADDR \
-		LOCALVERSION="-$LINUXFAMILY" \
+		LOCALVERSION="$LINUXFAMILY" \
 		$KERNEL_IMAGE_TYPE modules dtbs 2>>$DEST/debug/compilation.log' \
 		${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/debug/compilation.log'} \
 		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" \
 		--progressbox "Compiling kernel..." $TTY_Y $TTY_X'} \
 		${OUTPUT_VERYSILENT:+' >/dev/null 2>/dev/null'}
+	# SRC_LOADADDR ?
 
 	if [[ ${PIPESTATUS[0]} -ne 0 || ! -f arch/$ARCHITECTURE/boot/$KERNEL_IMAGE_TYPE ]]; then
 		exit_with_error "Kernel was not built" "@host"
@@ -526,15 +534,16 @@ compile_kernel()
 		local kernel_packing="deb-pkg"
 	fi
 
-	display_alert "Creating packages"
+	BuildRevision="7.0$(ls $SRC/patch/kernel/$LINUXFAMILY-$BRANCH | wc -l)"
+	display_alert "Creating packages revision $BuildRevision"
 
 	# produce deb packages: image, headers, firmware, dtb
 	echo -e "\n\t== deb packages: image, headers, firmware, dtb ==\n" >> "${DEST}"/debug/pkg.log
 	eval CCACHE_BASEDIR="$(pwd)" env PATH="${toolchain}:${PATH}" \
 		'make $CTHREADS $kernel_packing \
-		KDEB_PKGVERSION=$REVISION \
 		BRANCH=$BRANCH \
 		LOCALVERSION="-${LINUXFAMILY}" \
+		KDEB_PKGVERSION=${REVISION}-${BuildRevision} \
 		KBUILD_DEBARCH=$ARCH \
 		ARCH=$ARCHITECTURE \
 		DEBFULLNAME="$MAINTAINER" \
@@ -543,6 +552,7 @@ compile_kernel()
 		${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/debug/pkg.log'} \
 		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Creating kernel packages..." $TTY_Y $TTY_X'} \
 		${OUTPUT_VERYSILENT:+' >/dev/null 2>/dev/null'}
+#		KDEB_PKGVERSION=${version}-${BuildRevision} \
 
 	cd .. || exit
 	# remove firmare image packages here - easier than patching ~40 packaging scripts at once

@@ -6,10 +6,6 @@
 
 set -e
 
-@BRANCH@
-@LOCALVERSION@
-@KDEB_PKGVERSION@
-
 is_enabled() {
 	grep -q "^$1=y" include/config/auto.conf
 }
@@ -97,12 +93,20 @@ else
 	revision=$(cat .version 2>/dev/null||echo 1)
 	packageversion=$version-$revision
 fi
+
+echo >&2 "packageversion =: $packageversion"
+echo >&2 "revision =: $revision"
+
 sourcename=$KDEB_SOURCENAME
-packagename=linux-image-$BRANCH$LOCALVERSION
-kernel_headers_packagename=linux-headers-$BRANCH$LOCALVERSION
-libc_headers_packagename=linux-libc-dev-$BRANCH$LOCALVERSION
-dtb_packagename=linux-dtb-$BRANCH$LOCALVERSION
+packagename=linux-image-"$version"
+kernel_headers_packagename=linux-headers-"$version"
+libc_headers_packagename=linux-libc-dev-"$version"
+dtb_packagename=linux-dtb-"$version"
 dbg_packagename=$packagename-dbg
+
+echo >&2 "sourcename =: $sourcename"
+echo >&2 "packagename =: $packagename"
+echo >&2 "kernel_headers_packagename =: $kernel_headers_packagename"
 
 if [ "$ARCH" = "um" ] ; then
 	packagename=user-mode-linux-$version
@@ -138,6 +142,8 @@ else
         echo >&2 "Using default distribution of 'unstable' in the changelog"
         echo >&2 "Install lsb-release or set \$KDEB_CHANGELOG_DIST explicitly"
 fi
+
+echo >&2 "distribution =: $distribution"
 
 mkdir -p debian/source/
 echo "1.0" > debian/source/format
@@ -186,6 +192,7 @@ Homepage: https://www.kernel.org/
 
 Package: $packagename
 Architecture: $debarch
+Provides: linux-image, linux-image-$version
 Description: Linux kernel, version $version
  This package contains the Linux kernel, modules and corresponding other
  files, version: $version.
@@ -210,6 +217,7 @@ Multi-Arch: same
 
 Package: $dtb_packagename
 Architecture: $debarch
+Provides: linux-dtb, linux-dtb-$version
 Description: Linux DTB, version $version
  This package contains device blobs from the Linux kernel, version $version
 EOF
