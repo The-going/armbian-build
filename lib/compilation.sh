@@ -392,6 +392,14 @@ compile_kernel()
 	# build 3rd party drivers
 	compilation_prepare
 
+	# apply_patch_series <target dir> <full path to series file>
+	if test -f "${SRC}"/patch/kernel/${KERNELPATCHDIR}/series.conf; then
+		display_alert "series.conf file visible =========================== !!!!!!!!!!!!!!"
+		series_conf="${SRC}"/patch/kernel/${KERNELPATCHDIR}/series.conf
+
+		apply_patch_series "${kerneldir}" "$series_conf"
+	fi
+
 	advanced_patch "kernel" "$KERNELPATCHDIR" "$BOARD" "" "$BRANCH" "$LINUXFAMILY-$BRANCH"
 
 	# create patch for manual source changes in debug mode
@@ -973,6 +981,48 @@ userpatch_create()
 	fi
 	git reset --soft HEAD~
 	for i in {3..1..1}; do echo -n "$i." && sleep 1; done
+}
+
+# apply_patch_series <target dir> <full path to series file>
+apply_patch_series ()
+{
+	local t_dir="${1}"
+	local series="${2}"
+	local bzdir="$(dirname $series)"
+	local flag
+
+	list=$(gawk '$0 !~ /^#.*|^-.*|^$/' "${series}")
+	skiplist=$(gawk '$0 ~ /^-.*/' "${series}")
+
+	display_alert "apply a series of " "[$(echo $list | wc -w)] patches"
+	display_alert "skip [$(echo $skiplist | wc -w)] patches"
+
+	cd "${t_dir}" || exit 1
+	for p in $list
+	do
+		# Detect and remove files as '*.patch' which patch will create.
+		# So we need to delete the file before applying the patch if it exists.
+		lsdiff -s --strip=1 "$bzdir/$p" | \
+		awk '$0 ~ /^+.*patch$/{print $2}' | \
+		xargs -I % sh -c 'rm -f %'
+
+		patch --batch --silent --no-backup-if-mismatch -p1 -N -i $bzdir/"$p"
+		flag=$?
+
+		case $flag in
+			0)	printf "%-72s[ done ]\n" "${p#*/}" | \
+				tee -a "${DEST}"/debug/patching.log
+				;;
+			1)
+				echo -e "For ${p} 1 or more Hank bad\t\t[ $flag ]\n" | \
+				tee -a "${DEST}"/debug/patching.log
+				;;
+			2)
+				echo -e "Patch wrong ${p}\t\t[ $flag ]\n" | \
+				tee -a "${DEST}"/debug/patching.log
+			;;
+		esac
+	done
 }
 
 # overlayfs_wrapper <operation> <workdir> <description>
