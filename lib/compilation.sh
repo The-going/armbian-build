@@ -389,18 +389,18 @@ compile_kernel()
 	# read kernel git hash
 	hash=$(improved_git --git-dir="$kerneldir"/.git rev-parse HEAD)
 
-	# build 3rd party drivers
-	compilation_prepare
-
 	# apply_patch_series <target dir> <full path to series file>
 	if test -f "${SRC}"/patch/kernel/${KERNELPATCHDIR}/series.conf; then
-		display_alert "series.conf file visible =========================== !!!!!!!!!!!!!!"
-		series_conf="${SRC}"/patch/kernel/${KERNELPATCHDIR}/series.conf
+		display_alert "series.conf file visible ======= !!!!!!!"
+		series_conf="$(realpath ${SRC}/patch/kernel/${KERNELPATCHDIR}/series.conf)"
 
 		apply_patch_series "${kerneldir}" "$series_conf"
-	fi
+	else
+		# build 3rd party drivers
+		compilation_prepare
 
-	advanced_patch "kernel" "$KERNELPATCHDIR" "$BOARD" "" "$BRANCH" "$LINUXFAMILY-$BRANCH"
+		advanced_patch "kernel" "$KERNELPATCHDIR" "$BOARD" "" "$BRANCH" "$LINUXFAMILY-$BRANCH"
+	fi
 
 	# create patch for manual source changes in debug mode
 	[[ $CREATE_PATCHES == yes ]] && userpatch_create "kernel"
