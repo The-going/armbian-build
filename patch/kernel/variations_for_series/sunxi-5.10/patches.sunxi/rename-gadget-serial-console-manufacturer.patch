@@ -1,0 +1,26 @@
+From 1eb456f24f8ce5d6c88ab0933cb786d8b85219f5 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Thu, 22 Apr 2021 19:58:41 +0300
+Subject: [PATCH] rename gadget serial console manufacturer
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ drivers/usb/gadget/composite.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/usb/gadget/composite.c b/drivers/usb/gadget/composite.c
+index 1a556a628..f0067f517 100644
+--- a/drivers/usb/gadget/composite.c
++++ b/drivers/usb/gadget/composite.c
+@@ -2480,7 +2480,7 @@ EXPORT_SYMBOL_GPL(usb_composite_setup_continue);
+ 
+ static char *composite_default_mfr(struct usb_gadget *gadget)
+ {
+-	return kasprintf(GFP_KERNEL, "%s %s with %s", init_utsname()->sysname,
++	return kasprintf(GFP_KERNEL, "%s %s with %s", "Armbian Linux",
+ 			 init_utsname()->release, gadget->name);
+ }
+ 
+-- 
+2.26.2
+

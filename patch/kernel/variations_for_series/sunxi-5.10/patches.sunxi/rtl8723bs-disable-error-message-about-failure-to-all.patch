@@ -1,0 +1,26 @@
+From 7549e6860d917c089de0d5dea3e61afb8667d736 Mon Sep 17 00:00:00 2001
+From: Vasily Khoruzhick <anarsoul@gmail.com>
+Date: Mon, 10 Sep 2018 20:32:51 -0700
+Subject: [PATCH] rtl8723bs: disable error message about failure to alloc
+ recvbuf
+
+---
+ drivers/staging/rtl8723bs/hal/sdio_ops.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/staging/rtl8723bs/hal/sdio_ops.c b/drivers/staging/rtl8723bs/hal/sdio_ops.c
+index 369f55d11..6d4f406c2 100644
+--- a/drivers/staging/rtl8723bs/hal/sdio_ops.c
++++ b/drivers/staging/rtl8723bs/hal/sdio_ops.c
+@@ -865,7 +865,7 @@ static struct recv_buf *sd_recv_rxfifo(struct adapter *adapter, u32 size)
+ 	recv_priv = &adapter->recvpriv;
+ 	recvbuf = rtw_dequeue_recvbuf(&recv_priv->free_recv_buf_queue);
+ 	if (!recvbuf) {
+-		DBG_871X_LEVEL(_drv_err_, "%s: alloc recvbuf FAIL!\n", __func__);
++		//DBG_871X_LEVEL(_drv_err_, "%s: alloc recvbuf FAIL!\n", __func__);
+ 		return NULL;
+ 	}
+ 
+-- 
+2.26.2
+

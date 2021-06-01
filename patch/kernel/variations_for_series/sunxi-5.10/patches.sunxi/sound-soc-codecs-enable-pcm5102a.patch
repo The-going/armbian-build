@@ -1,0 +1,26 @@
+From f52333471fed532314b5c623e751fa44dd1ef34b Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Thu, 22 Apr 2021 20:25:22 +0300
+Subject: [PATCH] sound soc codecs enable pcm5102a
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ sound/soc/codecs/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sound/soc/codecs/Kconfig b/sound/soc/codecs/Kconfig
+index 23a1a95f3..20d99b44d 100644
+--- a/sound/soc/codecs/Kconfig
++++ b/sound/soc/codecs/Kconfig
+@@ -1006,7 +1006,7 @@ config SND_SOC_PCM3168A_SPI
+ 	select REGMAP_SPI
+ 
+ config SND_SOC_PCM5102A
+-	tristate
++	tristate "Texas Instruments PCM5102A CODEC"
+ 
+ config SND_SOC_PCM512x
+ 	tristate
+-- 
+2.26.2
+

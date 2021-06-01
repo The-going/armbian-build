@@ -1,0 +1,56 @@
+From cbb251837765a8e61760ccf9c2f72cbd81e230b8 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Tue, 13 Apr 2021 20:32:38 +0300
+Subject: [PATCH] 0007 bootsplash
+
+---
+ drivers/tty/vt/keyboard.c | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)
+
+diff --git a/drivers/tty/vt/keyboard.c b/drivers/tty/vt/keyboard.c
+index 78acc270e..4567e5716 100644
+--- a/drivers/tty/vt/keyboard.c
++++ b/drivers/tty/vt/keyboard.c
+@@ -23,6 +23,10 @@
+  * 21-08-02: Converted to input API, major cleanup. (Vojtech Pavlik)
+  */
+ 
++#include <linux/bootsplash.h>
++#ifdef pr_fmt(fmt)
++#undef pr_fmt(fmt)
++#endif
+ #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+ 
+ #include <linux/consolemap.h>
+@@ -1397,6 +1401,28 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
+ 	}
+ #endif
+ 
++	/* Trap keys when bootsplash is shown */
++	if (bootsplash_would_render_now()) {
++		/* Deactivate bootsplash on ESC or Alt+Fxx VT switch */
++		if (keycode >= KEY_F1 && keycode <= KEY_F12) {
++			bootsplash_disable();
++
++			/*
++			 * No return here since we want to actually
++			 * perform the VT switch.
++			 */
++		} else {
++			if (keycode == KEY_ESC)
++				bootsplash_disable();
++
++			/*
++			 * Just drop any other keys.
++			 * Their effect would be hidden by the splash.
++			 */
++			return;
++		}
++	}
++
+ 	if (kbd->kbdmode == VC_MEDIUMRAW) {
+ 		/*
+ 		 * This is extended medium raw mode, with keys above 127
+-- 
+2.26.2
+

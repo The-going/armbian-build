@@ -1,0 +1,61 @@
+From 727206e54734dab66f45534bc0d93d36cb182c54 Mon Sep 17 00:00:00 2001
+From: Icenowy Zheng <icenowy@aosc.io>
+Date: Sun, 22 Nov 2020 08:25:35 +0800
+Subject: [PATCH] ARM: dts: sun8i: s3: switch PineCube to use OHCI/EHCI only
+
+The PineCube board features a USB Type-A connector connected to the
+SoC's USB pins.
+
+As this is not designed for being used as a USB device, disable OTG
+controller and route USB to OHCI/EHCI fixedly.
+
+Signed-off-by: Icenowy Zheng <icenowy@aosc.io>
+---
+ arch/arm/boot/dts/sun8i-s3-pinecube.dts | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/arch/arm/boot/dts/sun8i-s3-pinecube.dts b/arch/arm/boot/dts/sun8i-s3-pinecube.dts
+index 4aa0ee897..c4177c54e 100644
+--- a/arch/arm/boot/dts/sun8i-s3-pinecube.dts
++++ b/arch/arm/boot/dts/sun8i-s3-pinecube.dts
+@@ -78,6 +78,12 @@ csi1_ep: endpoint {
+ 	};
+ };
+ 
++&ehci0 {
++	phys = <&usbphy 0>;
++	phy-names = "usb";
++	status = "okay";
++};
++
+ &emac {
+ 	phy-handle = <&int_mii_phy>;
+ 	phy-mode = "mii";
+@@ -158,6 +164,12 @@ &mmc1 {
+ 	status = "okay";
+ };
+ 
++&ohci0 {
++	phys = <&usbphy 0>;
++	phy-names = "usb";
++	status = "okay";
++};
++
+ &pio {
+ 	vcc-pd-supply = <&reg_dcdc3>;
+ 	vcc-pe-supply = <&reg_ldo3>;
+@@ -224,11 +236,6 @@ &uart2 {
+ 	status = "okay";
+ };
+ 
+-&usb_otg {
+-	dr_mode = "host";
+-	status = "okay";
+-};
+-
+ &usbphy {
+ 	usb0_vbus-supply = <&reg_vcc5v0>;
+ 	status = "okay";
+-- 
+2.26.2
+

@@ -1,0 +1,29 @@
+From e3793a212d8dffe27a15b8f232d6e4f873b4d011 Mon Sep 17 00:00:00 2001
+From: Philipp Rossak <embed3d@gmail.com>
+Date: Fri, 26 Jan 2018 01:07:15 +0100
+Subject: [PATCH] arm: dts: sun8i: h3: add support for the thermal sensor in H3
+
+This patch adds the missing compatible and the thermal sensor cells.
+The H3 has one sensor.
+
+Signed-off-by: Philipp Rossak <embed3d@gmail.com>
+---
+ arch/arm/boot/dts/sun8i-h3.dtsi | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/arm/boot/dts/sun8i-h3.dtsi b/arch/arm/boot/dts/sun8i-h3.dtsi
+index 8e7d20e81..749b311c4 100644
+--- a/arch/arm/boot/dts/sun8i-h3.dtsi
++++ b/arch/arm/boot/dts/sun8i-h3.dtsi
+@@ -384,3 +384,8 @@ &rtc {
+ &sid {
+ 	compatible = "allwinner,sun8i-h3-sid";
+ };
++
++&ths {
++	compatible = "allwinner,sun8i-h3-ths";
++	#thermal-sensor-cells = <0>;
++};
+-- 
+2.26.2
+

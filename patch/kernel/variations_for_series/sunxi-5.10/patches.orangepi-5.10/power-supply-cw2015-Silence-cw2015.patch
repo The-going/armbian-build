@@ -1,0 +1,43 @@
+From 6b2bdb5d13264cb013a09bfff7ff350bc640fb01 Mon Sep 17 00:00:00 2001
+From: Ondrej Jirman <megous@megous.com>
+Date: Tue, 14 Jul 2020 02:49:52 +0200
+Subject: [PATCH] power: supply: cw2015: Silence cw2015
+
+It's too annoying in the log
+
+Signed-off-by: Ondrej Jirman <megous@megous.com>
+---
+ drivers/power/supply/cw2015_battery.c    | 3 ++-
+ drivers/power/supply/power_supply_core.c | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/power/supply/cw2015_battery.c b/drivers/power/supply/cw2015_battery.c
+index 0146f1bfc..7f2a4e8c8 100644
+--- a/drivers/power/supply/cw2015_battery.c
++++ b/drivers/power/supply/cw2015_battery.c
+@@ -673,7 +673,8 @@ static int cw_bat_probe(struct i2c_client *client)
+ 						    &cw2015_bat_desc,
+ 						    &psy_cfg);
+ 	if (IS_ERR(cw_bat->rk_bat)) {
+-		dev_err(cw_bat->dev, "Failed to register power supply\n");
++		if (PTR_ERR(cw_bat->rk_bat) != -EPROBE_DEFER)
++			dev_err(cw_bat->dev, "Failed to register power supply\n");
+ 		return PTR_ERR(cw_bat->rk_bat);
+ 	}
+ 
+diff --git a/drivers/power/supply/power_supply_core.c b/drivers/power/supply/power_supply_core.c
+index 38e3aa642..50071bedb 100644
+--- a/drivers/power/supply/power_supply_core.c
++++ b/drivers/power/supply/power_supply_core.c
+@@ -1143,7 +1143,7 @@ __power_supply_register(struct device *parent,
+ 
+ 	rc = power_supply_check_supplies(psy);
+ 	if (rc) {
+-		dev_info(dev, "Not all required supplies found, defer probe\n");
++		//dev_info(dev, "Not all required supplies found, defer probe\n");
+ 		goto check_supplies_failed;
+ 	}
+ 
+-- 
+2.26.2
+

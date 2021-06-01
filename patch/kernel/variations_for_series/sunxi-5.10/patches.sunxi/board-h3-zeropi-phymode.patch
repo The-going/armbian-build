@@ -1,0 +1,26 @@
+From d73a81d5c2ec480c0a2740710c01fed7051bbef4 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Sat, 17 Apr 2021 18:13:01 +0300
+Subject: [PATCH] board h3 zeropi phymode
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm/boot/dts/sun8i-h3-zeropi.dts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/boot/dts/sun8i-h3-zeropi.dts b/arch/arm/boot/dts/sun8i-h3-zeropi.dts
+index c8be3a7a1..9b14e930a 100644
+--- a/arch/arm/boot/dts/sun8i-h3-zeropi.dts
++++ b/arch/arm/boot/dts/sun8i-h3-zeropi.dts
+@@ -88,7 +88,7 @@ &emac {
+ 	pinctrl-0 = <&emac_rgmii_pins>;
+ 	phy-supply = <&reg_gmac_3v3>;
+ 	phy-handle = <&ext_rgmii_phy>;
+-	phy-mode = "rgmii";
++	phy-mode = "rgmii-id";
+ 
+ 	allwinner,leds-active-low;
+ 	status = "okay";
+-- 
+2.26.2
+

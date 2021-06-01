@@ -1,0 +1,35 @@
+From 990cb2482dbecad198bf917b041c4dc4e2eae244 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Wed, 21 Apr 2021 19:12:49 +0300
+Subject: [PATCH] general spidev remove warnings
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ drivers/spi/spidev.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/spi/spidev.c b/drivers/spi/spidev.c
+index 859910ec8..0c5a6318a 100644
+--- a/drivers/spi/spidev.c
++++ b/drivers/spi/spidev.c
+@@ -734,12 +734,12 @@ static int spidev_probe(struct spi_device *spi)
+ 
+ 	/*
+ 	 * spidev should never be referenced in DT without a specific
+-	 * compatible string, it is a Linux implementation thing
+-	 * rather than a description of the hardware.
++	 * compatible string, but people don't care and use DT overlays
++	 * to activate SPIdev on demand
+ 	 */
+-	WARN(spi->dev.of_node &&
+-	     of_device_is_compatible(spi->dev.of_node, "spidev"),
+-	     "%pOF: buggy DT: spidev listed directly in DT\n", spi->dev.of_node);
++	if (spi->dev.of_node && !of_match_device(spidev_dt_ids, &spi->dev)) {
++		dev_info(&spi->dev, "probing from DT");
++	}
+ 
+ 	spidev_probe_acpi(spi);
+ 
+-- 
+2.26.2
+

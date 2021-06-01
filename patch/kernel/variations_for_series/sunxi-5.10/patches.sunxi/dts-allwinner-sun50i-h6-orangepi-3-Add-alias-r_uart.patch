@@ -1,0 +1,25 @@
+From c1600ea9f3eaf6fcaca8824f8c9e5f9c3ad386d5 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Thu, 22 Apr 2021 20:12:00 +0300
+Subject: [PATCH] dts: allwinner: sun50i-h6-orangepi-3 Add alias r_uart
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+index aef1e08f1..6b1a2dd32 100644
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+@@ -15,6 +15,7 @@ / {
+ 	aliases {
+ 		serial0 = &uart0;
+ 		serial1 = &uart1;
++		serial9 = &r_uart;
+ 		ethernet0 = &emac;
+ 	};
+ 
+-- 
+2.26.2
+

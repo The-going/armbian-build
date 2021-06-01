@@ -1,0 +1,85 @@
+From 667d9d6bf87136bb48dfeebbd3b426331d6499ec Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Fri, 2 Apr 2021 21:10:52 +0300
+Subject: [PATCH] drm-debugging-code Fix ISO C90
+
+---
+ drivers/gpu/drm/sun4i/sun8i_ui_layer.c | 4 ++--
+ drivers/gpu/drm/sun4i/sun8i_vi_layer.c | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/gpu/drm/sun4i/sun8i_ui_layer.c b/drivers/gpu/drm/sun4i/sun8i_ui_layer.c
+index 5ef1f7513..2fbdbb28b 100644
+--- a/drivers/gpu/drm/sun4i/sun8i_ui_layer.c
++++ b/drivers/gpu/drm/sun4i/sun8i_ui_layer.c
+@@ -29,6 +29,7 @@ static void sun8i_ui_layer_enable(struct sun8i_mixer *mixer, int channel,
+ {
+ 	u32 val, bld_base, ch_base;
+ 	unsigned int old_pipe_ch;
++	unsigned  tmp;
+ 
+ 	bld_base = sun8i_blender_base(mixer);
+ 	ch_base = sun8i_channel_base(mixer, channel);
+@@ -102,7 +103,6 @@ static void sun8i_ui_layer_enable(struct sun8i_mixer *mixer, int channel,
+ 		DRM_DEBUG_DRIVER("  enable pipe %d <- ch %d\n", zpos, channel);
+ 	}
+ 
+-	unsigned  tmp;
+ 	regmap_read(mixer->engine.regs,
+ 			   SUN8I_MIXER_CHAN_UI_LAYER_ATTR(ch_base, overlay), &tmp);
+ 	DRM_DEBUG_DRIVER("  post-en-dis %08x\n", tmp);
+@@ -213,6 +213,7 @@ static int sun8i_ui_layer_update_formats(struct sun8i_mixer *mixer, int channel,
+ 	const struct drm_format_info *fmt;
+ 	u32 val, ch_base, hw_fmt;
+ 	int ret;
++	unsigned tmp;
+ 
+ 	ch_base = sun8i_channel_base(mixer, channel);
+ 
+@@ -223,7 +224,6 @@ static int sun8i_ui_layer_update_formats(struct sun8i_mixer *mixer, int channel,
+ 		return -EINVAL;
+ 	}
+ 
+-	unsigned tmp;
+ 	regmap_read(mixer->engine.regs,
+ 			   SUN8I_MIXER_CHAN_UI_LAYER_ATTR(ch_base, overlay), &tmp);
+ 	DRM_DEBUG_DRIVER("  pre-format %08x\n", tmp);
+diff --git a/drivers/gpu/drm/sun4i/sun8i_vi_layer.c b/drivers/gpu/drm/sun4i/sun8i_vi_layer.c
+index c393c388e..07528e5ef 100644
+--- a/drivers/gpu/drm/sun4i/sun8i_vi_layer.c
++++ b/drivers/gpu/drm/sun4i/sun8i_vi_layer.c
+@@ -23,6 +23,7 @@ static void sun8i_vi_layer_enable(struct sun8i_mixer *mixer, int channel,
+ {
+ 	u32 val, bld_base, ch_base;
+ 	unsigned int old_pipe_ch;
++	unsigned  tmp;
+ 
+ 	bld_base = sun8i_blender_base(mixer);
+ 	ch_base = sun8i_channel_base(mixer, channel);
+@@ -96,7 +97,6 @@ static void sun8i_vi_layer_enable(struct sun8i_mixer *mixer, int channel,
+ 		DRM_DEBUG_DRIVER("  enable pipe %d <- ch %d\n", zpos, channel);
+ 	}
+ 
+-	unsigned  tmp;
+ 	regmap_read(mixer->engine.regs,
+ 			   SUN8I_MIXER_CHAN_VI_LAYER_ATTR(ch_base, overlay), &tmp);
+ 	DRM_DEBUG_DRIVER("  post-en-dis %08x\n", tmp);
+@@ -270,6 +270,7 @@ static int sun8i_vi_layer_update_formats(struct sun8i_mixer *mixer, int channel,
+ 	u32 val, ch_base, csc_mode, hw_fmt;
+ 	const struct drm_format_info *fmt;
+ 	int ret;
++	unsigned  tmp;
+ 
+ 	ch_base = sun8i_channel_base(mixer, channel);
+ 
+@@ -280,7 +281,6 @@ static int sun8i_vi_layer_update_formats(struct sun8i_mixer *mixer, int channel,
+ 		return ret;
+ 	}
+ 
+-	unsigned  tmp;
+ 	regmap_read(mixer->engine.regs,
+ 			   SUN8I_MIXER_CHAN_VI_LAYER_ATTR(ch_base, overlay), &tmp);
+ 	DRM_DEBUG_DRIVER("  pre-format %08x\n", tmp);
+-- 
+2.26.2
+

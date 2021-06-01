@@ -1,0 +1,36 @@
+From e561812fd356b770807bad551b4eb91463490f91 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Wed, 28 Apr 2021 14:52:19 +0300
+Subject: [PATCH] arm64: dts: h5-orangepi-prime wifi rtl8723cs
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm64/boot/dts/allwinner/sun50i-h5-orangepi-prime.dts | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-h5-orangepi-prime.dts b/arch/arm64/boot/dts/allwinner/sun50i-h5-orangepi-prime.dts
+index c86f79f4d..ac92213e3 100644
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h5-orangepi-prime.dts
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h5-orangepi-prime.dts
+@@ -24,6 +24,7 @@ reg_vcc3v3: vcc3v3 {
+ 
+ 	aliases {
+ 		ethernet0 = &emac;
++		ethernet1 = &rtl8723cs;
+ 		serial0 = &uart0;
+ 	};
+ 
+@@ -170,6 +171,10 @@ &mmc1 {
+ 	bus-width = <4>;
+ 	non-removable;
+ 	status = "okay";
++
++	rtl8723cs: sdio_wifi@1 {
++		reg = <1>;
++	};
+ };
+ 
+ &ohci0 {
+-- 
+2.26.2
+

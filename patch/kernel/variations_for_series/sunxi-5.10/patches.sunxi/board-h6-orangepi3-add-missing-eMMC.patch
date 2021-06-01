@@ -1,0 +1,33 @@
+From 69c6c426cc326d13edba409cc47252adeb8029a0 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Sun, 18 Apr 2021 14:29:24 +0300
+Subject: [PATCH] board h6 orangepi3 add missing eMMC
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+index 77a18fd6b..a0460f4d7 100644
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+@@ -200,11 +200,13 @@ brcm: sdio-wifi@1 {
+ };
+ 
+ &mmc2 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&mmc2_pins>;
+ 	vmmc-supply = <&reg_cldo1>;
+ 	vqmmc-supply = <&reg_bldo2>;
+-	cap-mmc-hw-reset;
+-	non-removable;
+ 	bus-width = <8>;
++	non-removable;
++	cap-mmc-hw-reset;
+ 	status = "okay";
+ };
+ 
+-- 
+2.26.2
+

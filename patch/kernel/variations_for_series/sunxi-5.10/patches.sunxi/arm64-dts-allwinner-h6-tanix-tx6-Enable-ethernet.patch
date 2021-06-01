@@ -1,0 +1,85 @@
+From ab459d90f5655e299924f3247031137f46265c24 Mon Sep 17 00:00:00 2001
+From: Jernej Skrabec <jernej.skrabec@siol.net>
+Date: Sun, 12 Jan 2020 12:19:51 +0100
+Subject: [PATCH] arm64: dts: allwinner: h6: tanix-tx6: Enable ethernet
+
+Signed-off-by: Jernej Skrabec <jernej.skrabec@siol.net>
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ .../dts/allwinner/sun50i-h6-tanix-tx6.dts     | 32 +++++++++++++++++++
+ 1 file changed, 32 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-h6-tanix-tx6.dts b/arch/arm64/boot/dts/allwinner/sun50i-h6-tanix-tx6.dts
+index be81330db..b5b934a12 100644
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h6-tanix-tx6.dts
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h6-tanix-tx6.dts
+@@ -13,6 +13,7 @@ / {
+ 	compatible = "oranth,tanix-tx6", "allwinner,sun50i-h6";
+ 
+ 	aliases {
++		ethernet0 = &emac;
+ 		serial0 = &uart0;
+ 	};
+ 
+@@ -51,6 +52,14 @@ &cpu0 {
+ 	cpu-supply = <&reg_vdd_cpu_gpu>;
+ };
+ 
++&ac200_ephy {
++	status = "okay";
++};
++
++&ac200_pwm_clk {
++	status = "okay";
++};
++
+ &de {
+ 	status = "okay";
+ };
+@@ -59,6 +68,14 @@ &dwc3 {
+ 	status = "okay";
+ };
+ 
++&emac {
++	pinctrl-names = "default";
++	pinctrl-0 = <&ext_rmii_pins>;
++	phy-mode = "rmii";
++	phy-handle = <&ext_rmii_phy>;
++	status = "okay";
++};
++
+ &ehci0 {
+ 	status = "okay";
+ };
+@@ -82,6 +99,17 @@ hdmi_out_con: endpoint {
+ 	};
+ };
+ 
++&i2c3 {
++	status = "okay";
++};
++
++&mdio {
++	ext_rmii_phy: ethernet-phy@1 {
++		compatible = "ethernet-phy-ieee802.3-c22";
++		reg = <1>;
++	};
++};
++
+ &mmc0 {
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <&mmc0_pins>;
+@@ -99,6 +127,10 @@ &ohci3 {
+ 	status = "okay";
+ };
+ 
++&pwm {
++	status = "okay";
++};
++
+ &r_ir {
+ 	linux,rc-map-name = "rc-tanix-tx5max";
+ 	status = "okay";
+-- 
+2.26.2
+

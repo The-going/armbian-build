@@ -1,0 +1,39 @@
+From ea9e84ec3428c80c3ded387af11c413a7dd2861f Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Sat, 17 Apr 2021 10:46:09 +0300
+Subject: [PATCH] board cubieboard cubietruck gree LED mmc0
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm/boot/dts/sun4i-a10-cubieboard.dts | 2 +-
+ arch/arm/boot/dts/sun7i-a20-cubietruck.dts | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/boot/dts/sun4i-a10-cubieboard.dts b/arch/arm/boot/dts/sun4i-a10-cubieboard.dts
+index 6ca02e824..6e7f16c95 100644
+--- a/arch/arm/boot/dts/sun4i-a10-cubieboard.dts
++++ b/arch/arm/boot/dts/sun4i-a10-cubieboard.dts
+@@ -83,7 +83,7 @@ blue {
+ 		green {
+ 			label = "cubieboard:green:usr";
+ 			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>; /* LED2 */
+-			linux,default-trigger = "heartbeat";
++			linux,default-trigger = "mmc0";
+ 		};
+ 	};
+ };
+diff --git a/arch/arm/boot/dts/sun7i-a20-cubietruck.dts b/arch/arm/boot/dts/sun7i-a20-cubietruck.dts
+index bc38fe116..c11ed9dd5 100644
+--- a/arch/arm/boot/dts/sun7i-a20-cubietruck.dts
++++ b/arch/arm/boot/dts/sun7i-a20-cubietruck.dts
+@@ -93,6 +93,7 @@ white {
+ 		green {
+ 			label = "cubietruck:green:usr";
+ 			gpios = <&pio 7 7 GPIO_ACTIVE_HIGH>;
++			linux,default-trigger = "mmc0";
+ 		};
+ 	};
+ 
+-- 
+2.26.2
+

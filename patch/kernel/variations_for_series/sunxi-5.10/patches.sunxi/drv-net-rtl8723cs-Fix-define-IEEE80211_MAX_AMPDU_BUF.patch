@@ -1,0 +1,27 @@
+From 321c082ebc2242732a3874746e03dd919f9ee23e Mon Sep 17 00:00:00 2001
+From: leo <leo@linux-gwij.local>
+Date: Tue, 23 Feb 2021 14:55:19 +0300
+Subject: [PATCH] drv: net: rtl8723cs Fix define IEEE80211_MAX_AMPDU_BUF
+
+225 warnings: "IEEE80211_MAX_AMPDU_BUF" redefined
+---
+ drivers/net/wireless/realtek/rtl8723cs/include/wifi.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/net/wireless/realtek/rtl8723cs/include/wifi.h b/drivers/net/wireless/realtek/rtl8723cs/include/wifi.h
+index 9d21a5afd..03f9b1322 100644
+--- a/drivers/net/wireless/realtek/rtl8723cs/include/wifi.h
++++ b/drivers/net/wireless/realtek/rtl8723cs/include/wifi.h
+@@ -1006,7 +1006,9 @@ typedef enum _HT_CAP_AMPDU_DENSITY {
+  * According to IEEE802.11n spec size varies from 8K to 64K (in powers of 2)
+  */
+ #define IEEE80211_MIN_AMPDU_BUF 0x8
++#ifndef IEEE80211_MAX_AMPDU_BUF
+ #define IEEE80211_MAX_AMPDU_BUF 0x40
++#endif
+ 
+ 
+ /* Spatial Multiplexing Power Save Modes */
+-- 
+2.26.2
+

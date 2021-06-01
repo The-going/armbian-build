@@ -1,0 +1,25 @@
+From 7e4f69b7c2e1467dcffd5050a6f4762b6d583759 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Sun, 18 Apr 2021 17:11:41 +0300
+Subject: [PATCH] general add H6 GPIO disable_strict_mode
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ drivers/pinctrl/sunxi/pinctrl-sun50i-h6.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/pinctrl/sunxi/pinctrl-sun50i-h6.c b/drivers/pinctrl/sunxi/pinctrl-sun50i-h6.c
+index 3cc112158..1182cc864 100644
+--- a/drivers/pinctrl/sunxi/pinctrl-sun50i-h6.c
++++ b/drivers/pinctrl/sunxi/pinctrl-sun50i-h6.c
+@@ -588,6 +588,7 @@ static const unsigned int h6_irq_bank_map[] = { 1, 5, 6, 7 };
+ static const struct sunxi_pinctrl_desc h6_pinctrl_data = {
+ 	.pins = h6_pins,
+ 	.npins = ARRAY_SIZE(h6_pins),
++	.disable_strict_mode = true,
+ 	.irq_banks = 4,
+ 	.irq_bank_map = h6_irq_bank_map,
+ 	.irq_read_needs_mux = true,
+-- 
+2.26.2
+

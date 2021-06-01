@@ -1,0 +1,25 @@
+From c063ad5e32c1ea093a3da6fa3636d11665af85d6 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Sun, 18 Apr 2021 15:55:30 +0300
+Subject: [PATCH] fix orangepiwin wlan0 alias
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm64/boot/dts/allwinner/sun50i-a64-orangepi-win.dts | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-a64-orangepi-win.dts b/arch/arm64/boot/dts/allwinner/sun50i-a64-orangepi-win.dts
+index 70e31743f..54ececb22 100644
+--- a/arch/arm64/boot/dts/allwinner/sun50i-a64-orangepi-win.dts
++++ b/arch/arm64/boot/dts/allwinner/sun50i-a64-orangepi-win.dts
+@@ -15,6 +15,7 @@ / {
+ 
+ 	aliases {
+ 		ethernet0 = &emac;
++		ethernet1 = &brcmf;
+ 		serial0 = &uart0;
+ 		serial1 = &uart1;
+ 		serial2 = &uart2;
+-- 
+2.26.2
+

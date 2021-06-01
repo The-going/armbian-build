@@ -1,0 +1,37 @@
+From 2168d477222881767cd0b5e4df571eb796215173 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Thu, 22 Apr 2021 20:42:27 +0300
+Subject: [PATCH] drivers: spi-sun6i sck high too early
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ drivers/spi/spi-sun6i.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/spi/spi-sun6i.c b/drivers/spi/spi-sun6i.c
+index 19238e1b7..966cb4360 100644
+--- a/drivers/spi/spi-sun6i.c
++++ b/drivers/spi/spi-sun6i.c
+@@ -291,6 +291,10 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
+ 
+ 	sun6i_spi_write(sspi, SUN6I_CLK_CTL_REG, reg);
+ 
++	/* Finally enable the bus - doing so before might raise SCK to HIGH */
++	sun6i_spi_write(sspi, SUN6I_GBL_CTL_REG,
++			sun6i_spi_read(sspi, SUN6I_GBL_CTL_REG) | SUN6I_GBL_CTL_BUS_ENABLE);
++
+ 	/* Setup the transfer now... */
+ 	if (sspi->tx_buf)
+ 		tx_len = tfr->len;
+@@ -398,7 +402,7 @@ static int sun6i_spi_runtime_resume(struct device *dev)
+ 	}
+ 
+ 	sun6i_spi_write(sspi, SUN6I_GBL_CTL_REG,
+-			SUN6I_GBL_CTL_BUS_ENABLE | SUN6I_GBL_CTL_MASTER | SUN6I_GBL_CTL_TP);
++			SUN6I_GBL_CTL_MASTER | SUN6I_GBL_CTL_TP);
+ 
+ 	return 0;
+ 
+-- 
+2.26.2
+

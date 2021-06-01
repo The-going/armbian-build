@@ -1,0 +1,39 @@
+From bf01cc287c5e9e88f1dbd6234a1c324006155209 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Fri, 16 Apr 2021 21:04:07 +0300
+Subject: [PATCH] add missing ext_osc32k on H6
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi b/arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi
+index 604134220..25d6f30c0 100644
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi
+@@ -109,6 +109,13 @@ osc24M: osc24M_clk {
+ 		clock-output-names = "osc24M";
+ 	};
+ 
++	ext_osc32k: ext_osc32k_clk {
++		#clock-cells = <0>;
++		compatible = "fixed-clock";
++		clock-frequency = <32768>;
++		clock-output-names = "ext_osc32k";
++	};
++
+ 	pmu {
+ 		compatible = "arm,cortex-a53-pmu";
+ 		interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>,
+@@ -1051,6 +1058,7 @@ rtc: rtc@7000000 {
+ 			interrupts = <5 IRQ_TYPE_LEVEL_HIGH>,
+ 				     <6 IRQ_TYPE_LEVEL_HIGH>;
+ 			clock-output-names = "osc32k", "osc32k-out", "iosc";
++			clocks = <&ext_osc32k>;
+ 			#clock-cells = <1>;
+ 		};
+ 
+-- 
+2.26.2
+

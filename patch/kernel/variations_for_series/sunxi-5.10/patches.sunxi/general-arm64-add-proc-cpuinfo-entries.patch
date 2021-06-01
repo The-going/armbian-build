@@ -1,0 +1,27 @@
+From b7ff5092b4db8ea749f1eff3d38c3c3d3707d181 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Wed, 21 Apr 2021 13:33:49 +0300
+Subject: [PATCH] general arm64 add proc cpuinfo entries
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm64/kernel/cpuinfo.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/arch/arm64/kernel/cpuinfo.c b/arch/arm64/kernel/cpuinfo.c
+index 77605aec2..9817e7b1d 100644
+--- a/arch/arm64/kernel/cpuinfo.c
++++ b/arch/arm64/kernel/cpuinfo.c
+@@ -148,6 +148,9 @@ static int c_show(struct seq_file *m, void *v)
+ 		 * "processor".  Give glibc what it expects.
+ 		 */
+ 		seq_printf(m, "processor\t: %d\n", i);
++		seq_printf(m, "Processor\t: AArch64 Processor rev %d (aarch64)\n",
++				   MIDR_REVISION(midr));
++		seq_printf(m, "Hardware\t: sun50iw1p1\n");
+ 		if (compat)
+ 			seq_printf(m, "model name\t: ARMv8 Processor rev %d (%s)\n",
+ 				   MIDR_REVISION(midr), COMPAT_ELF_PLATFORM);
+-- 
+2.26.2
+

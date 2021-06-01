@@ -1,0 +1,29 @@
+From 5e31c42c5dda9ce72cdc16e0ffa91877df7b3d7a Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Sat, 17 Apr 2021 10:41:41 +0300
+Subject: [PATCH] board a83t bananapi m3 enable IR controller
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm/boot/dts/sun8i-a83t-bananapi-m3.dts | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/arm/boot/dts/sun8i-a83t-bananapi-m3.dts b/arch/arm/boot/dts/sun8i-a83t-bananapi-m3.dts
+index 431f70234..758680b78 100644
+--- a/arch/arm/boot/dts/sun8i-a83t-bananapi-m3.dts
++++ b/arch/arm/boot/dts/sun8i-a83t-bananapi-m3.dts
+@@ -196,6 +196,11 @@ &r_cir {
+ 	status = "okay";
+ };
+ 
++&r_cir {
++	clock-frequency = <3000000>;
++	status = "okay";
++};
++
+ &r_rsb {
+ 	status = "okay";
+ 
+-- 
+2.26.2
+

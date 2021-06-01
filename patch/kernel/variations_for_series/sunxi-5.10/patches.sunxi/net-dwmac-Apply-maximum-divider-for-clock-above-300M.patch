@@ -1,0 +1,25 @@
+From ed2c6612caf95710b72d87634e1552c0cc49ff7e Mon Sep 17 00:00:00 2001
+From: Mitko Gamishev <hehopmajieh@debian.bg>
+Date: Wed, 5 Feb 2020 15:30:38 +0200
+Subject: [PATCH] net-dwmac-Apply-maximum-divider-for-clock-above-300MHz.patch
+
+---
+ drivers/net/ethernet/stmicro/stmmac/stmmac_main.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+index 6012eadae..a10d6a2bb 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
++++ b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+@@ -226,7 +226,7 @@ static void stmmac_clk_csr_set(struct stmmac_priv *priv)
+ 			priv->clk_csr = STMMAC_CSR_100_150M;
+ 		else if ((clk_rate >= CSR_F_150M) && (clk_rate < CSR_F_250M))
+ 			priv->clk_csr = STMMAC_CSR_150_250M;
+-		else if ((clk_rate >= CSR_F_250M) && (clk_rate < CSR_F_300M))
++		else if (clk_rate >= CSR_F_250M)
+ 			priv->clk_csr = STMMAC_CSR_250_300M;
+ 	}
+ 
+-- 
+2.26.2
+

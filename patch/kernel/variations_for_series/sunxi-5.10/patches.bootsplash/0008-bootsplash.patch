@@ -1,0 +1,33 @@
+From 806e4ebd02bd89f69336a97ead21d77bc9a8804f Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Tue, 13 Apr 2021 20:36:11 +0300
+Subject: [PATCH] 0008 bootsplash
+
+---
+ drivers/tty/sysrq.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/tty/sysrq.c b/drivers/tty/sysrq.c
+index 959f9e121..e77b2a3f3 100644
+--- a/drivers/tty/sysrq.c
++++ b/drivers/tty/sysrq.c
+@@ -51,6 +51,7 @@
+ #include <linux/syscalls.h>
+ #include <linux/of.h>
+ #include <linux/rcupdate.h>
++#include <linux/bootsplash.h>
+ 
+ #include <asm/ptrace.h>
+ #include <asm/irq_regs.h>
+@@ -119,6 +120,8 @@ static void sysrq_handle_SAK(int key)
+ {
+ 	struct work_struct *SAK_work = &vc_cons[fg_console].SAK_work;
+ 	schedule_work(SAK_work);
++
++	bootsplash_disable();
+ }
+ static const struct sysrq_key_op sysrq_SAK_op = {
+ 	.handler	= sysrq_handle_SAK,
+-- 
+2.26.2
+

@@ -1,0 +1,25 @@
+From 5c6c3393758ebb922ba30227367023ac146d5705 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Sun, 18 Apr 2021 16:02:16 +0300
+Subject: [PATCH] force mmc0 bus width A64
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm64/boot/dts/allwinner/sun50i-a64.dtsi | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-a64.dtsi b/arch/arm64/boot/dts/allwinner/sun50i-a64.dtsi
+index 47027a550..0b4a45fa7 100644
+--- a/arch/arm64/boot/dts/allwinner/sun50i-a64.dtsi
++++ b/arch/arm64/boot/dts/allwinner/sun50i-a64.dtsi
+@@ -538,6 +538,7 @@ mmc0: mmc@1c0f000 {
+ 			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+ 			max-frequency = <150000000>;
+ 			status = "disabled";
++			bus-width = <0x4>;
+ 			#address-cells = <1>;
+ 			#size-cells = <0>;
+ 		};
+-- 
+2.26.2
+

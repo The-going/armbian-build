@@ -1,0 +1,40 @@
+From cb5572f0fb46a6232a605ce64c1520ee408db243 Mon Sep 17 00:00:00 2001
+From: Pascal Roeleven <dev@pascalroeleven.nl>
+Date: Tue, 17 Mar 2020 16:59:04 +0100
+Subject: [PATCH] pwm: sun4i: Disable pwm before turning off clock gate
+
+The clock gate must stay on when disabling to ensure proper turning off.
+After one period it will still be disabled anyway.
+
+Signed-off-by: Pascal Roeleven <dev@pascalroeleven.nl>
+Reviewed-by: Chen-Yu Tsai <wens@csie.org>
+Signed-off-by: The-Going <48602507+The-going@users.noreply.github.com>
+---
+ drivers/pwm/pwm-sun4i.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/pwm/pwm-sun4i.c b/drivers/pwm/pwm-sun4i.c
+index 482d5b9ce..4ac6c5169 100644
+--- a/drivers/pwm/pwm-sun4i.c
++++ b/drivers/pwm/pwm-sun4i.c
+@@ -292,10 +292,14 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+ 	else
+ 		ctrl |= BIT_CH(PWM_ACT_STATE, pwm->hwpwm);
+ 
+-	ctrl |= BIT_CH(PWM_CLK_GATING, pwm->hwpwm);
+-
+-	if (state->enabled)
++	if (state->enabled) {
+ 		ctrl |= BIT_CH(PWM_EN, pwm->hwpwm);
++		ctrl |= BIT_CH(PWM_CLK_GATING, pwm->hwpwm);
++	} else {
++		/* Turn gate off after delay to ensure proper turning off */
++		ctrl &= ~BIT_CH(PWM_EN, pwm->hwpwm);
++		ctrl &= ~BIT_CH(PWM_CLK_GATING, pwm->hwpwm);
++	}
+ 
+ 	sun4i_pwm_writel(sun4i_pwm, ctrl, PWM_CTRL_REG);
+ 
+-- 
+2.26.2
+

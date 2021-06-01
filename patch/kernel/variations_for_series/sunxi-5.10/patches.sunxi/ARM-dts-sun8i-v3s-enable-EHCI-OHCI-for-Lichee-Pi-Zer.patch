@@ -1,0 +1,42 @@
+From aa18428ee8338a1c429a01f692a127cf0f0b7d4b Mon Sep 17 00:00:00 2001
+From: Icenowy Zheng <icenowy@aosc.io>
+Date: Wed, 16 Aug 2017 12:38:25 +0800
+Subject: [PATCH] ARM: dts: sun8i: v3s: enable EHCI/OHCI for Lichee Pi Zero
+
+As the USB port on Lichee Pi Zero works in the OTG mode, enable the
+EHCI/OHCI controllers for it.
+
+Signed-off-by: Icenowy Zheng <icenowy@aosc.io>
+---
+ arch/arm/boot/dts/sun8i-v3s-licheepi-zero.dts | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/arch/arm/boot/dts/sun8i-v3s-licheepi-zero.dts b/arch/arm/boot/dts/sun8i-v3s-licheepi-zero.dts
+index 2e4587d26..0cd969194 100644
+--- a/arch/arm/boot/dts/sun8i-v3s-licheepi-zero.dts
++++ b/arch/arm/boot/dts/sun8i-v3s-licheepi-zero.dts
+@@ -77,6 +77,10 @@ red_led {
+ 	};
+ };
+ 
++&ehci0 {
++	status = "okay";
++};
++
+ &mmc0 {
+ 	broken-cd;
+ 	bus-width = <4>;
+@@ -84,6 +88,10 @@ &mmc0 {
+ 	status = "okay";
+ };
+ 
++&ohci0 {
++	status = "okay";
++};
++
+ &uart0 {
+ 	pinctrl-0 = <&uart0_pb_pins>;
+ 	pinctrl-names = "default";
+-- 
+2.26.2
+

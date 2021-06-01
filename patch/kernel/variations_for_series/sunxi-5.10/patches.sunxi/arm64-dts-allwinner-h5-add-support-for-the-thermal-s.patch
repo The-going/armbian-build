@@ -1,0 +1,31 @@
+From a36bfe69affd6b7955a21b5140da6347391f03c1 Mon Sep 17 00:00:00 2001
+From: Philipp Rossak <embed3d@gmail.com>
+Date: Fri, 26 Jan 2018 01:40:38 +0100
+Subject: [PATCH] arm64: dts: allwinner: h5: add support for the thermal sensor
+ in H5
+
+This patch adds the missing compatible and the thermal sensor cells.
+The H5 has two sensors.
+
+Signed-off-by: Philipp Rossak <embed3d@gmail.com>
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm64/boot/dts/allwinner/sun50i-h5.dtsi | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-h5.dtsi b/arch/arm64/boot/dts/allwinner/sun50i-h5.dtsi
+index 31037177a..c84605eab 100644
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h5.dtsi
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h5.dtsi
+@@ -274,3 +274,8 @@ &rtc {
+ &sid {
+ 	compatible = "allwinner,sun50i-h5-sid";
+ };
++
++&ths {
++	compatible = "allwinner,sun50i-h5-ths";
++	#thermal-sensor-cells = <1>;
++};
+-- 
+2.26.2
+

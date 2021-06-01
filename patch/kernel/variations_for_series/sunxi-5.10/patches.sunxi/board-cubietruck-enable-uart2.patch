@@ -1,0 +1,38 @@
+From c7ff61b42f93460e1198564ff17c20790c51a972 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Sat, 17 Apr 2021 10:48:54 +0300
+Subject: [PATCH] board cubietruck enable uart2
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm/boot/dts/sun7i-a20-cubietruck.dts | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/arch/arm/boot/dts/sun7i-a20-cubietruck.dts b/arch/arm/boot/dts/sun7i-a20-cubietruck.dts
+index c11ed9dd5..e934e01ff 100644
+--- a/arch/arm/boot/dts/sun7i-a20-cubietruck.dts
++++ b/arch/arm/boot/dts/sun7i-a20-cubietruck.dts
+@@ -55,6 +55,7 @@ / {
+ 
+ 	aliases {
+ 		serial0 = &uart0;
++		serial2 = &uart2;
+ 	};
+ 
+ 	chosen {
+@@ -336,6 +337,12 @@ bluetooth {
+ 	};
+ };
+ 
++&uart2 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&uart2_cts_rts_pi_pins>, <&uart2_pi_pins>;
++	status = "okay";
++};
++
+ &usb_otg {
+ 	dr_mode = "otg";
+ 	status = "okay";
+-- 
+2.26.2
+

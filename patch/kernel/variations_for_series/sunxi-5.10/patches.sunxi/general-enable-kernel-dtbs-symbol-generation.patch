@@ -1,0 +1,27 @@
+From de0eecb01942f6f5e130df9b1b92ea43b4241df1 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Wed, 21 Apr 2021 18:33:43 +0300
+Subject: [PATCH] general enable kernel dtbs symbol generation
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ scripts/Makefile.lib | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/scripts/Makefile.lib b/scripts/Makefile.lib
+index 941337088..45aed5fe0 100644
+--- a/scripts/Makefile.lib
++++ b/scripts/Makefile.lib
+@@ -295,7 +295,8 @@ DTC_FLAGS += -Wnode_name_chars_strict \
+ 	-Winterrupt_provider
+ endif
+ 
+-DTC_FLAGS += $(DTC_FLAGS_$(basetarget))
++DTC_FLAGS += $(DTC_FLAGS_$(basetarget)) \
++	-@
+ 
+ # Generate an assembly file to wrap the output of the device tree compiler
+ quiet_cmd_dt_S_dtb= DTB     $@
+-- 
+2.26.2
+

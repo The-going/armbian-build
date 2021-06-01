@@ -1,0 +1,36 @@
+From 9fc083e7b1a209b41f5a22f902240429850c2493 Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Sat, 24 Apr 2021 14:18:22 +0300
+Subject: [PATCH] arm64: dts: allwiner: sun50i-h6 add cpu opp refs
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi.dtsi | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi.dtsi b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi.dtsi
+index ebc120a92..1e8b74d18 100644
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi.dtsi
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi.dtsi
+@@ -5,6 +5,7 @@
+ /dts-v1/;
+ 
+ #include "sun50i-h6.dtsi"
++#include "sun50i-h6-cpu-opp.dtsi"
+ 
+ #include <dt-bindings/gpio/gpio.h>
+ 
+@@ -64,6 +65,10 @@ reg_vcc5v: vcc5v {
+ 	};
+ };
+ 
++&cpu0 {
++        cpu-supply = <&reg_dcdca>;
++};
++
+ &de {
+ 	status = "okay";
+ };
+-- 
+2.26.2
+

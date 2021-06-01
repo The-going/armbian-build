@@ -1,0 +1,53 @@
+From 0442552ad951a36fe1b8269dad776f224b0a6dbf Mon Sep 17 00:00:00 2001
+From: The Going <48602507+The-going@users.noreply.github.com>
+Date: Sat, 17 Apr 2021 10:22:21 +0300
+Subject: [PATCH] add more uart pins to sun8i-r40
+
+Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm/boot/dts/sun8i-r40.dtsi | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/arch/arm/boot/dts/sun8i-r40.dtsi b/arch/arm/boot/dts/sun8i-r40.dtsi
+index 7907569e7..6a9738dd7 100644
+--- a/arch/arm/boot/dts/sun8i-r40.dtsi
++++ b/arch/arm/boot/dts/sun8i-r40.dtsi
+@@ -617,6 +617,11 @@ uart0_pb_pins: uart0-pb-pins {
+ 				function = "uart0";
+ 			};
+ 
++			uart2_pi_pins: uart2-pi-pins {
++				pins = "PI18", "PI19";
++				function = "uart2";
++			};
++
+ 			uart3_pg_pins: uart3-pg-pins {
+ 				pins = "PG6", "PG7";
+ 				function = "uart3";
+@@ -626,6 +631,23 @@ uart3_rts_cts_pg_pins: uart3-rts-cts-pg-pins {
+ 				pins = "PG8", "PG9";
+ 				function = "uart3";
+ 			};
++
++			uart4_ph_pins: uart4-ph-pins {
++				pins = "PH4", "PH5";
++				function = "uart4";
++			};
++
++
++			uart5_ph_pins: uart5-ph-pins {
++				pins = "PH6", "PH7";
++				function = "uart5";
++			};
++
++			uart7_pi_pins: uart7-pi-pins {
++				pins = "PI20", "PI21";
++				function = "uart7";
++			};
++
+ 		};
+ 
+ 		wdt: watchdog@1c20c90 {
+-- 
+2.26.2
+
