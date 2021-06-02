@@ -175,7 +175,7 @@ dtb_dir="debian/dtbtmp"
 packagename=linux-image-"$BRANCH$LOCALVERSION"
 kernel_headers_packagename=linux-headers-"$BRANCH$LOCALVERSION"
 dtb_packagename=linux-dtb-"$BRANCH$LOCALVERSION"
-libc_headers_packagename=linux-libc-dev
+libc_headers_packagename=linux-libc-dev-"$BRANCH$LOCALVERSION"
 dbg_packagename=$packagename-dbg
 
 if [ "$ARCH" = "um" ] ; then
