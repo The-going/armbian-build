@@ -1,4 +1,4 @@
-From 32c14742b7863ae5758953adb06d162395236eeb Mon Sep 17 00:00:00 2001
+From 0b0f516b65e9627cbc50bac6f9aa455a8fbaf0b9 Mon Sep 17 00:00:00 2001
 From: The Going <48602507+The-going@users.noreply.github.com>
 Date: Wed, 21 Apr 2021 18:55:03 +0300
 Subject: [PATCH] general fix cs_gpio spi support
@@ -9,10 +9,10 @@ Signed-off-by: The Going <48602507+The-going@users.noreply.github.com>
  1 file changed, 13 insertions(+)
 
 diff --git a/drivers/spi/spi.c b/drivers/spi/spi.c
-index 4257a2d36..b6c87d852 100644
+index 419de3d40..89313a082 100644
 --- a/drivers/spi/spi.c
 +++ b/drivers/spi/spi.c
-@@ -3382,6 +3382,19 @@ int spi_setup(struct spi_device *spi)
+@@ -3377,6 +3377,19 @@ int spi_setup(struct spi_device *spi)
  	if (spi->controller->setup)
  		status = spi->controller->setup(spi);
  

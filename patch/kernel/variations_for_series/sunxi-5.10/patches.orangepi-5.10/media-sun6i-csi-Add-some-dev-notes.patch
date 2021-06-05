@@ -1,4 +1,4 @@
-From f353031afdb51d9ac9327c6b75f3ded4ddc1c92a Mon Sep 17 00:00:00 2001
+From 6b746d7ff3f0f065d1340faa532e40d7d449618f Mon Sep 17 00:00:00 2001
 From: Ondrej Jirman <megous@megous.com>
 Date: Sun, 26 Jan 2020 00:40:55 +0100
 Subject: [PATCH] media: sun6i-csi: Add some dev notes
@@ -9,10 +9,10 @@ Signed-off-by: Ondrej Jirman <megous@megous.com>
  1 file changed, 2 insertions(+)
 
 diff --git a/drivers/media/platform/sunxi/sun6i-csi/sun6i_video.c b/drivers/media/platform/sunxi/sun6i-csi/sun6i_video.c
-index a813304df..e8b7a7b9e 100644
+index 53ddbff12..fbe5b156e 100644
 --- a/drivers/media/platform/sunxi/sun6i-csi/sun6i_video.c
 +++ b/drivers/media/platform/sunxi/sun6i-csi/sun6i_video.c
-@@ -410,6 +410,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
+@@ -413,6 +413,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
  	return sun6i_video_try_fmt(video, f);
  }
  

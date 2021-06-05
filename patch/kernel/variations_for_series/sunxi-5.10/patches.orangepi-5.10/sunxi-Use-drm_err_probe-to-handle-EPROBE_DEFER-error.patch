@@ -1,4 +1,4 @@
-From f0cdb18d6618ebf550eae7bd95b781e7a7b9414d Mon Sep 17 00:00:00 2001
+From b968c33ec4543dd6391540083c1e5f431db3d16f Mon Sep 17 00:00:00 2001
 From: Ondrej Jirman <megous@megous.com>
 Date: Mon, 2 Sep 2019 14:51:17 +0200
 Subject: [PATCH] sunxi: Use drm_err_probe to handle EPROBE_DEFER errors
@@ -44,10 +44,10 @@ index 672518741..9f2fbbcb0 100644
  	}
  
 diff --git a/drivers/gpu/drm/panel/panel-sitronix-st7703.c b/drivers/gpu/drm/panel/panel-sitronix-st7703.c
-index 3b4e21436..070ef2bae 100644
+index 48f7f20ea..c010a5516 100644
 --- a/drivers/gpu/drm/panel/panel-sitronix-st7703.c
 +++ b/drivers/gpu/drm/panel/panel-sitronix-st7703.c
-@@ -585,7 +585,7 @@ static int st7703_probe(struct mipi_dsi_device *dsi)
+@@ -588,7 +588,7 @@ static int st7703_probe(struct mipi_dsi_device *dsi)
  
  	ret = mipi_dsi_attach(dsi);
  	if (ret < 0) {

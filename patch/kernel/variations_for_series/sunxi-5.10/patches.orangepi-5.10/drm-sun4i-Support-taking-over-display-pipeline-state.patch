@@ -1,4 +1,4 @@
-From e35d35511625010da28f5484f999fa62810f4679 Mon Sep 17 00:00:00 2001
+From fc1e7671953eb096463535d46c7d8b60c65d41ba Mon Sep 17 00:00:00 2001
 From: Ondrej Jirman <megous@megous.com>
 Date: Sun, 5 Jul 2020 16:02:01 +0200
 Subject: [PATCH] drm: sun4i: Support taking over display pipeline state from
@@ -72,7 +72,7 @@ index 8033467db..b2f98a412 100644
  
  	return 0;
 diff --git a/drivers/gpu/drm/panel/panel-sitronix-st7703.c b/drivers/gpu/drm/panel/panel-sitronix-st7703.c
-index 1fe0e7299..948790f1e 100644
+index 67e1da0a7..b3aff1de0 100644
 --- a/drivers/gpu/drm/panel/panel-sitronix-st7703.c
 +++ b/drivers/gpu/drm/panel/panel-sitronix-st7703.c
 @@ -58,6 +58,7 @@ struct st7703 {
@@ -83,7 +83,7 @@ index 1fe0e7299..948790f1e 100644
  };
  
  struct st7703_panel_desc {
-@@ -360,6 +361,11 @@ static int st7703_enable(struct drm_panel *panel)
+@@ -361,6 +362,11 @@ static int st7703_enable(struct drm_panel *panel)
  	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
  	int ret;
  
@@ -95,7 +95,7 @@ index 1fe0e7299..948790f1e 100644
  	ret = ctx->desc->init_sequence(ctx);
  	if (ret < 0) {
  		dev_err(ctx->dev, "Panel init sequence failed: %d\n", ret);
-@@ -424,8 +430,10 @@ static int st7703_prepare(struct drm_panel *panel)
+@@ -427,8 +433,10 @@ static int st7703_prepare(struct drm_panel *panel)
  	if (ctx->prepared)
  		return 0;
  
@@ -106,7 +106,7 @@ index 1fe0e7299..948790f1e 100644
  
  	ret = regulator_enable(ctx->iovcc);
  	if (ret < 0) {
-@@ -441,10 +449,12 @@ static int st7703_prepare(struct drm_panel *panel)
+@@ -444,10 +452,12 @@ static int st7703_prepare(struct drm_panel *panel)
  	}
  
  	/* Give power supplies time to stabilize before deasserting reset. */
@@ -119,7 +119,7 @@ index 1fe0e7299..948790f1e 100644
  
  	ctx->prepared = true;
  
-@@ -521,12 +531,19 @@ static int st7703_probe(struct mipi_dsi_device *dsi)
+@@ -524,12 +534,19 @@ static int st7703_probe(struct mipi_dsi_device *dsi)
  {
  	struct device *dev = &dsi->dev;
  	struct st7703 *ctx;

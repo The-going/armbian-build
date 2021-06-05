@@ -1,4 +1,4 @@
-From 1c8d0f03f06393782d786e6b5ad14132f3e3e0ad Mon Sep 17 00:00:00 2001
+From 9787b52ed078bb4d32a5fbeb57b40ad0e7c01843 Mon Sep 17 00:00:00 2001
 From: Ondrej Jirman <megous@megous.com>
 Date: Mon, 30 Sep 2019 11:49:54 +0200
 Subject: [PATCH] mtd: spi-nor: Add regulator support
@@ -10,10 +10,10 @@ Signed-off-by: Ondrej Jirman <megous@megous.com>
  2 files changed, 34 insertions(+), 6 deletions(-)
 
 diff --git a/drivers/mtd/spi-nor/core.c b/drivers/mtd/spi-nor/core.c
-index 06e1bf01f..7a2ccd7e8 100644
+index 2b26a875a..ddb323549 100644
 --- a/drivers/mtd/spi-nor/core.c
 +++ b/drivers/mtd/spi-nor/core.c
-@@ -3307,6 +3307,22 @@ static int spi_nor_probe(struct spi_mem *spimem)
+@@ -3340,6 +3340,22 @@ static int spi_nor_probe(struct spi_mem *spimem)
  	if (!nor)
  		return -ENOMEM;
  
@@ -36,7 +36,7 @@ index 06e1bf01f..7a2ccd7e8 100644
  	nor->spimem = spimem;
  	nor->dev = &spi->dev;
  	spi_nor_set_flash_node(nor, spi->dev.of_node);
-@@ -3334,7 +3350,7 @@ static int spi_nor_probe(struct spi_mem *spimem)
+@@ -3367,7 +3383,7 @@ static int spi_nor_probe(struct spi_mem *spimem)
  
  	ret = spi_nor_scan(nor, flash_name, &hwcaps);
  	if (ret)
@@ -45,7 +45,7 @@ index 06e1bf01f..7a2ccd7e8 100644
  
  	/*
  	 * None of the existing parts have > 512B pages, but let's play safe
-@@ -3347,20 +3363,28 @@ static int spi_nor_probe(struct spi_mem *spimem)
+@@ -3380,20 +3396,28 @@ static int spi_nor_probe(struct spi_mem *spimem)
  		nor->bouncebuf = devm_kmalloc(nor->dev,
  					      nor->bouncebuf_size,
  					      GFP_KERNEL);
@@ -79,7 +79,7 @@ index 06e1bf01f..7a2ccd7e8 100644
  }
  
  static int spi_nor_remove(struct spi_mem *spimem)
-@@ -3368,6 +3392,7 @@ static int spi_nor_remove(struct spi_mem *spimem)
+@@ -3401,6 +3425,7 @@ static int spi_nor_remove(struct spi_mem *spimem)
  	struct spi_nor *nor = spi_mem_get_drvdata(spimem);
  
  	spi_nor_restore(nor);

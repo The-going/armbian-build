@@ -1,4 +1,4 @@
-From 8abb5cbdb1fc3a96efb25e123485d5d9f74d8c05 Mon Sep 17 00:00:00 2001
+From db157a3fb8e05cb6955f3085aff1b6a78ee77eb6 Mon Sep 17 00:00:00 2001
 From: Ondrej Jirman <megous@megous.com>
 Date: Thu, 29 Oct 2020 04:55:40 +0100
 Subject: [PATCH] drm: panel: st7703: Fix xbd599 timings to make refresh rate
@@ -10,10 +10,10 @@ Signed-off-by: Ondrej Jirman <megous@megous.com>
  1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/gpu/drm/panel/panel-sitronix-st7703.c b/drivers/gpu/drm/panel/panel-sitronix-st7703.c
-index 948790f1e..3b4e21436 100644
+index b3aff1de0..48f7f20ea 100644
 --- a/drivers/gpu/drm/panel/panel-sitronix-st7703.c
 +++ b/drivers/gpu/drm/panel/panel-sitronix-st7703.c
-@@ -334,14 +334,14 @@ static int xbd599_init_sequence(struct st7703 *ctx)
+@@ -335,14 +335,14 @@ static int xbd599_init_sequence(struct st7703 *ctx)
  
  static const struct drm_display_mode xbd599_mode = {
  	.hdisplay    = 720,

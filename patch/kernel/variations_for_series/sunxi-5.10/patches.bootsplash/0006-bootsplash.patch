@@ -1,4 +1,4 @@
-From c11f77f4ecf796b4aef5ad9f3ab6a7e15db3d222 Mon Sep 17 00:00:00 2001
+From aef00bed654279c34ae422901a350a834786c4c7 Mon Sep 17 00:00:00 2001
 From: The Going <48602507+The-going@users.noreply.github.com>
 Date: Tue, 13 Apr 2021 20:09:46 +0300
 Subject: [PATCH] 0006 bootsplash
@@ -10,7 +10,7 @@ Subject: [PATCH] 0006 bootsplash
  3 files changed, 15 insertions(+), 6 deletions(-)
 
 diff --git a/drivers/tty/vt/vt.c b/drivers/tty/vt/vt.c
-index d04a16293..c59e8fc3d 100644
+index 8f88ee2a2..ce7f11023 100644
 --- a/drivers/tty/vt/vt.c
 +++ b/drivers/tty/vt/vt.c
 @@ -106,6 +106,7 @@
@@ -21,7 +21,7 @@ index d04a16293..c59e8fc3d 100644
  
  #define MAX_NR_CON_DRIVER 16
  
-@@ -4403,6 +4404,7 @@ void do_unblank_screen(int leaving_gfx)
+@@ -4404,6 +4405,7 @@ void do_unblank_screen(int leaving_gfx)
  	}
  
  	console_blanked = 0;

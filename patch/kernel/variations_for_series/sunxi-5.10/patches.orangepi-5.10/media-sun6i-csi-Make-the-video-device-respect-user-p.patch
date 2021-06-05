@@ -1,4 +1,4 @@
-From e939876786bca7b02750255e90539660636e7042 Mon Sep 17 00:00:00 2001
+From 3de65167575f5a4df823d1fa91edb452a6254acd Mon Sep 17 00:00:00 2001
 From: Ondrej Jirman <megous@megous.com>
 Date: Fri, 24 Jan 2020 18:24:22 +0100
 Subject: [PATCH] media: sun6i-csi: Make the video device respect user passed
@@ -33,10 +33,10 @@ index 39ccdc0cc..9e2eebd50 100644
  		planar_offset[1] = -1;
  		planar_offset[2] = -1;
 diff --git a/drivers/media/platform/sunxi/sun6i-csi/sun6i_video.c b/drivers/media/platform/sunxi/sun6i-csi/sun6i_video.c
-index e8b7a7b9e..9f98d264f 100644
+index fbe5b156e..0cab5286b 100644
 --- a/drivers/media/platform/sunxi/sun6i-csi/sun6i_video.c
 +++ b/drivers/media/platform/sunxi/sun6i-csi/sun6i_video.c
-@@ -356,6 +356,7 @@ static int sun6i_video_try_fmt(struct sun6i_video *video,
+@@ -359,6 +359,7 @@ static int sun6i_video_try_fmt(struct sun6i_video *video,
  {
  	struct v4l2_pix_format *pixfmt = &f->fmt.pix;
  	int bpp;
@@ -44,7 +44,7 @@ index e8b7a7b9e..9f98d264f 100644
  
  	if (!is_pixformat_valid(pixfmt->pixelformat))
  		pixfmt->pixelformat = supported_pixformats[0];
-@@ -364,7 +365,13 @@ static int sun6i_video_try_fmt(struct sun6i_video *video,
+@@ -367,7 +368,13 @@ static int sun6i_video_try_fmt(struct sun6i_video *video,
  			      &pixfmt->height, MIN_HEIGHT, MAX_WIDTH, 1, 1);
  
  	bpp = sun6i_csi_get_bpp(pixfmt->pixelformat);
