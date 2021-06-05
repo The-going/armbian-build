@@ -394,6 +394,22 @@ compile_kernel()
 		display_alert "series.conf file visible ======= !!!!!!!"
 		series_conf="$(realpath ${SRC}/patch/kernel/${KERNELPATCHDIR}/series.conf)"
 
+		display_alert "Adjusting" "Armbian packaging ge 5.10" "info"
+		if test -d ${kerneldir}/debian
+		then
+			rm -rf ${kerneldir}/debian/*
+		fi
+		sed -i -e '
+			s/^KBUILD_IMAGE	:= \$(boot)\/Image\.gz$/KBUILD_IMAGE	:= \$(boot)\/Image/
+		' ${kerneldir}/arch/arm64/Makefile
+
+		rm -f ${kerneldir}/scripts/package/{builddeb,mkdebian}
+
+		cp ${SRC}/packages/armbian/builddeb ${kerneldir}/scripts/package/builddeb
+		cp ${SRC}/packages/armbian/mkdebian ${kerneldir}/scripts/package/mkdebian
+
+		chmod 755 ${kerneldir}/scripts/package/{builddeb,mkdebian}
+
 		apply_patch_series "${kerneldir}" "$series_conf"
 	else
 		# build 3rd party drivers
