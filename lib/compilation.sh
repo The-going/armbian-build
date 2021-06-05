@@ -290,7 +290,7 @@ compile_uboot()
 	# set up control file
 	cat <<-EOF > "$uboottempdir/${uboot_name}/DEBIAN/control"
 	Package: linux-u-boot-${BOARD}-${BRANCH}
-	Version: $REVISION
+	Version: ${version}~${REVISION}
 	Architecture: $ARCH
 	Maintainer: $MAINTAINER <$MAINTAINERMAIL>
 	Installed-Size: 1
@@ -525,7 +525,7 @@ compile_kernel()
 	echo -e "\n\t== deb packages: image, headers, firmware, dtb ==\n" >> "${DEST}"/debug/compilation.log
 	eval CCACHE_BASEDIR="$(pwd)" env PATH="${toolchain}:${PATH}" \
 		'make $CTHREADS $kernel_packing \
-		KDEB_PKGVERSION=$REVISION \
+		KDEB_PKGVERSION=${version}~$REVISION \
 		BRANCH=$BRANCH \
 		LOCALVERSION="-${LINUXFAMILY}" \
 		KBUILD_DEBARCH=$ARCH \
