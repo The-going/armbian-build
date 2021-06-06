@@ -272,11 +272,16 @@ install_common()
 
 	# install kernel
 	if [[ "${REPOSITORY_INSTALL}" != *kernel* ]]; then
-		VER=$(dpkg --info "${DEB_STORAGE}/${CHOSEN_KERNEL}_${REVISION}_${ARCH}.deb" | awk -F"-" '/Source:/{print $2}')
+		PKG_INS_IMG=$(find ${DEB_STORAGE}/ -name ${CHOSEN_KERNEL}'*'${ARCH}'.deb' | sort | tail -1)
 
-		install_deb_chroot "${DEB_STORAGE}/${CHOSEN_KERNEL}_${REVISION}_${ARCH}.deb"
-		if [[ -f ${DEB_STORAGE}/${CHOSEN_KERNEL/image/dtb}_${REVISION}_${ARCH}.deb ]]; then
-			install_deb_chroot "${DEB_STORAGE}/${CHOSEN_KERNEL/image/dtb}_${REVISION}_${ARCH}.deb"
+		if [ -n "$PKG_INS_IMG" ]; then
+			VER=$(dpkg --info "$PKG_INS_IMG" | awk -F"-" '/Source:/{print $2}')
+			install_deb_chroot "$PKG_INS_IMG"
+		fi
+
+		PKG_INS_DTB=$(find ${DEB_STORAGE}/ -name ${CHOSEN_KERNEL/image/dtb}'*'${ARCH}'.deb' | sort | tail -1)
+		if [ -n ${PKG_INS_DTB} ]; then
+			install_deb_chroot "${PKG_INS_DTB}"
 		fi
 		if [[ $INSTALL_HEADERS == yes ]]; then
 			install_deb_chroot "${DEB_STORAGE}/${CHOSEN_KERNEL/image/headers}_${REVISION}_${ARCH}.deb"
