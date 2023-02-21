@@ -25,11 +25,6 @@ cd "${SRC}" || exit
 
 if [[ -f "${SRC}"/lib/import-functions.sh ]]; then
 
-	# Declare this folder as safe
-	if ! grep -q "directory = \*" "$HOME/.gitconfig" 2> /dev/null; then
-		git config --global --add safe.directory "*"
-	fi
-
 	# shellcheck source=lib/import-functions.sh
 	source "${SRC}"/lib/import-functions.sh
 

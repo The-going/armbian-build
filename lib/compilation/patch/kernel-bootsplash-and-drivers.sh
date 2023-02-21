@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 compilation_prepare() {
 
-	source ${SRC}/lib/functions/compilation/patch/drivers_network.sh
+	source ${SRC}/lib/compilation/patch/drivers_network.sh
 
 	# Packaging patch for modern kernels should be one for all.
 	# Currently we have it per kernel family since we can't have one

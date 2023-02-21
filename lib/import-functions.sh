@@ -3,4 +3,9 @@
 while read -r file; do
 	# shellcheck source=/dev/null
 	source "$file"
-done <<< "$(find "${SRC}/lib/functions" -name "*.sh")"
+done <<< "$(
+	for d in general extras logging host bsp cli configuration compilation image rootfs main
+	do
+		find "${SRC}/lib/$d" -name "*.sh"
+	done
+)"
