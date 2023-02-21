@@ -1,0 +1,27 @@
+From 137f9c25d3858566cd250ad75e13ee861d1171e8 Mon Sep 17 00:00:00 2001
+From: zador-blood-stained <zador-blood-stained@users.noreply.github.com>
+Date: Thu, 26 Oct 2017 16:31:22 +0300
+Subject: [PATCH 12/57] Enable odroidc2-dev DVFS
+
+Enable odroidc2-dev DVFS (#763)
+---
+ arch/arm64/boot/dts/amlogic/meson-gxbb-odroidc2.dts | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/amlogic/meson-gxbb-odroidc2.dts b/arch/arm64/boot/dts/amlogic/meson-gxbb-odroidc2.dts
+index b2cb12fb4..95d4de5b4 100644
+--- a/arch/arm64/boot/dts/amlogic/meson-gxbb-odroidc2.dts
++++ b/arch/arm64/boot/dts/amlogic/meson-gxbb-odroidc2.dts
+@@ -350,7 +350,8 @@ &saradc {
+ };
+ 
+ &scpi_clocks {
+-	status = "disabled";
++	/* Works only with new blobs that have limited DVFS table */
++	status = "okay";
+ };
+ 
+ /* SD */
+-- 
+2.35.3
+

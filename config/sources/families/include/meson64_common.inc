@@ -29,11 +29,36 @@ case $BRANCH in
 		;;
 
 	edge)
-		KERNELBRANCH='tag:v6.2-rc3'     # @TODO: soon-to-be 'branch:linux-6.2.y' when it is released
-		KERNELPATCHDIR='meson64-edge'
+		KERNEL_VERSION_LEVEL=${KERNEL_VERSION_LEVEL:-6.2}
+		KERNELSWITCHOBJ=${KERNELSWITCHOBJ:-'tag=v6.2'}
 		;;
 
 esac
+
+case "$KERNEL_VERSION_LEVEL" in
+
+	6.2)
+		KERNELSOURCE=$MAINLINE_KERNEL_SOURCE
+		KERNELSOURCENAME='name=origin'
+		KERNELBRANCH="branch:linux-${KERNEL_VERSION_LEVEL}.y"
+		;;
+
+esac
+
+KERNELPATCHDIR='archive/meson64-'$KERNEL_VERSION_LEVEL
+
+var_origin_kernel() {
+	url=$MAINLINE_KERNEL_SOURCE
+	name='origin'
+	branch="linux-${KERNEL_VERSION_LEVEL}.y"
+	start_tag="v$KERNEL_VERSION_LEVEL"
+
+	# checking the reachability of the initial tag
+	if [ "$(git ls-remote --tags $url $start_tag |
+		awk -F'/' '{if (NR == 1) print $NF}')" != "$start_tag" ]; then
+		exit 177
+	fi
+}
 
 #if [ "$(uname -m)" = "aarch64" ]; then
 #	if [[ "$(lsb_release -sc)" == "bullseye" || "$(lsb_release -sc)" == "focal" || "$(lsb_release -sc)" == "hirsute" || "$(lsb_release -sc)" == "impish"  || "$(lsb_release -sc)" == "jammy" ]]; then
