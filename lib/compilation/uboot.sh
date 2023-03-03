@@ -46,10 +46,11 @@ compile_uboot() {
 	[[ -n $toolchain2 ]] && display_alert "Additional compiler version" "${toolchain2_type}gcc $(eval env PATH="${toolchain}:${toolchain2}:${PATH}" "${toolchain2_type}gcc" -dumpversion)" "info"
 
 	# create directory structure for the .deb package
+	# CHOSEN_UBOOT=linux-u-boot-${BRANCH}-${BOARD}
 	uboottempdir=$(mktemp -d)
 	chmod 700 ${uboottempdir}
 	trap "ret=\$?; rm -rf \"${uboottempdir}\" ; exit \$ret" 0 1 2 3 15
-	local uboot_name=${CHOSEN_UBOOT}_${REVISION}_${ARCH}
+	local uboot_name=${CHOSEN_UBOOT}_${version}_${ARCH}
 	rm -rf $uboottempdir/$uboot_name
 	mkdir -p $uboottempdir/$uboot_name/usr/lib/{u-boot,$uboot_name} $uboottempdir/$uboot_name/DEBIAN
 
@@ -182,9 +183,10 @@ compile_uboot() {
 	EOF
 
 	# set up control file
+	# CHOSEN_UBOOT=linux-u-boot-${BOARD}-${BRANCH}
 	cat <<- EOF > "$uboottempdir/${uboot_name}/DEBIAN/control"
-		Package: linux-u-boot-${BOARD}-${BRANCH}
-		Version: $REVISION
+		Package: $CHOSEN_UBOOT
+		Version: ${version}
 		Architecture: $ARCH
 		Maintainer: $MAINTAINER <$MAINTAINERMAIL>
 		Installed-Size: 1
@@ -211,6 +213,7 @@ compile_uboot() {
 
 	[[ ! -f $uboottempdir/${uboot_name}.deb ]] && exit_with_error "Building u-boot package failed"
 
-	rsync --remove-source-files -rq "$uboottempdir/${uboot_name}.deb" "${DEB_STORAGE}/"
+	mkdir -p "${DEB_STORAGE}/${RELEASE}/linux-u-boot"
+	rsync --remove-source-files -rq "$uboottempdir/${uboot_name}.deb" "${DEB_STORAGE}/${RELEASE}/linux-u-boot/"
 	rm -rf "$uboottempdir"
 }
