@@ -275,7 +275,7 @@ install_common() {
 	# install u-boot
 	[[ "${BOOTCONFIG}" != "none" ]] && {
 		install_deb_chroot "linux-u-boot-${BOARD}-${BRANCH}" "remote" "yes"
-		UPSTREM_VER=$(dpkg-deb -f "${SDCARD}"/var/cache/apt/archives/linux-u-boot-${BOARD}-${BRANCH}*_${ARCH}.deb Version)
+		UBOOT_VERSION=$RET_VERSION
 	}
 
 	call_extension_method "pre_install_kernel_debs" << 'PRE_INSTALL_KERNEL_DEBS'
