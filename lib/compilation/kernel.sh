@@ -120,10 +120,14 @@ CUSTOM_KERNEL_CONFIG
 		fi
 	fi
 
+	# Uniquely define variables before building source and binary
+	# packages if required:
 	# kernel package name extension
 	NAME_EXTENSION="${NAME_EXTENSION:-${BRANCH}-$LINUXFAMILY}"
 	# Vendor package revision
-	VENDOR_PKG_REVISION=${VENDOR}.${REVISION%-*}
+	VENDOR_PKG_REVISION=${VENDOR_PKG_REVISION:-"${VENDOR}.${REVISION%-*}"}
+	# local version
+	LOCALVERSION=${LOCALVERSION:-"-$LINUXFAMILY"}
 
 	# create linux-source package - with already patched sources
 	# We will build this package first and clear the memory.
@@ -136,6 +140,7 @@ CUSTOM_KERNEL_CONFIG
 		'make $CTHREADS ARCH=$ARCHITECTURE \
 		CROSS_COMPILE="$CCACHE $KERNEL_COMPILER" \
 		$SRC_LOADADDR \
+		LOCALVERSION=$LOCALVERSION \
 		VENDOR_PKG_REVISION=$VENDOR_PKG_REVISION \
 		NAME_EXTENSION=$NAME_EXTENSION \
 		$KERNEL_IMAGE_TYPE ${KERNEL_EXTRA_TARGETS:-modules dtbs} 2>>$DEST/${LOG_SUBPATH}/compilation.log' \
@@ -162,6 +167,7 @@ CUSTOM_KERNEL_CONFIG
 	echo -e "\n\t== deb packages: image, headers, firmware, dtb ==\n" >> "${DEST}"/${LOG_SUBPATH}/compilation.log
 	eval CCACHE_BASEDIR="$(pwd)" env PATH="${toolchain}:${PATH}" \
 		'make $CTHREADS $kernel_packing \
+		LOCALVERSION=$LOCALVERSION \
 		VENDOR_PKG_REVISION=$VENDOR_PKG_REVISION \
 		KDEB_COMPRESS=${DEB_COMPRESS} \
 		NAME_EXTENSION=$NAME_EXTENSION \
