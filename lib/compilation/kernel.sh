@@ -25,10 +25,19 @@ compile_kernel() {
 	# read kernel git hash
 	hash=$(improved_git --git-dir="$kerneldir"/.git rev-parse HEAD)
 
+	# Check the value of the suffix FLOW
+	[[ "$FLOW" == "-rt" ]] || [[ "$FLOW" == "-evl" ]] || FLOW=""
 	# Apply a series of patches if a series file exists
 	if test -f "${SRC}"/patch/kernel/${KERNELPATCHDIR}/series.conf; then
 		display_alert "series.conf file visible. Apply"
 		series_conf="${SRC}"/patch/kernel/${KERNELPATCHDIR}/series.conf
+
+		# apply_patch_series <target dir> <full path to series file>
+		apply_patch_series "${kerneldir}" "$series_conf"
+	fi
+	if test -f "${SRC}"/patch/kernel/${KERNELPATCHDIR}/series.${FLOW#*-}; then
+		display_alert "series.${FLOW#*-} file visible. Apply"
+		series_conf="${SRC}"/patch/kernel/${KERNELPATCHDIR}/series.${FLOW#*-}
 
 		# apply_patch_series <target dir> <full path to series file>
 		apply_patch_series "${kerneldir}" "$series_conf"
@@ -62,19 +71,23 @@ compile_kernel() {
 
 	display_alert "Compiler version" "${KERNEL_COMPILER}gcc $(eval env PATH="${toolchain}:${PATH}" "${KERNEL_COMPILER}gcc" -dumpversion)" "info"
 
+	# Add the ability to select target kernel configurations.
 	# copy kernel config
-	if [[ $KERNEL_KEEP_CONFIG == yes && -f "${DEST}"/config/$LINUXCONFIG.config ]]; then
-		display_alert "Using previous kernel config" "${DEST}/config/$LINUXCONFIG.config" "info"
-		cp -p "${DEST}/config/${LINUXCONFIG}.config" .config
+	if [[ $KERNEL_KEEP_CONFIG == yes && -f "${DEST}"/config/${LINUXCONFIG}${FLOW}.config ]]; then
+		display_alert "Using previous kernel config" "${DEST}/config/${LINUXCONFIG}${FLOW}.config" "info"
+		cp -p "${DEST}/config/${LINUXCONFIG}${FLOW}.config" .config
 	elif [ -f "$KERNEL_KEEP_CONFIG" ]; then
 		display_alert "Using previous kernel config" "$KERNEL_KEEP_CONFIG" "info"
 		cp -p "$KERNEL_KEEP_CONFIG" .config
 	else
-		if [[ -f $USERPATCHES_PATH/$LINUXCONFIG.config ]]; then
-			display_alert "Using kernel config provided by user" "userpatches/$LINUXCONFIG.config" "info"
-			cp -p "${USERPATCHES_PATH}/${LINUXCONFIG}.config" .config
+		if [[ -f $USERPATCHES_PATH/${LINUXCONFIG}${FLOW}.config ]]; then
+			display_alert "Using kernel config provided by user" "userpatches/${LINUXCONFIG}${FLOW}.config" "info"
+			cp -p "${USERPATCHES_PATH}/${LINUXCONFIG}${FLOW}.config" .config
+		elif [ -f "${SRC}/config/kernel/${LINUXCONFIG}${FLOW}.config" ]; then
+			display_alert "Using kernel config file" "config/kernel/${LINUXCONFIG}${FLOW}.config" "info"
+			cp -p "${SRC}/config/kernel/${LINUXCONFIG}${FLOW}.config" .config
 		else
-			display_alert "Using kernel config file" "config/kernel/$LINUXCONFIG.config" "info"
+			display_alert "Using kernel config file" "config/kernel/${LINUXCONFIG}.config" "info"
 			cp -p "${SRC}/config/kernel/${LINUXCONFIG}.config" .config
 		fi
 	fi
@@ -110,14 +123,14 @@ compile_kernel() {
 			display_alert "Exporting new kernel config" "$KERNEL_KEEP_CONFIG" "info"
 			cp -p .config "$KERNEL_KEEP_CONFIG"
 		else
-			display_alert "Exporting new kernel config" "$DEST/config/$LINUXCONFIG.config" "info"
-			cp .config "${DEST}/config/${LINUXCONFIG}.config"
+			display_alert "Exporting new kernel config" "$DEST/config/${LINUXCONFIG}${FLOW}.config" "info"
+			cp .config "${DEST}/config/${LINUXCONFIG}${FLOW}.config"
 		fi
 		# export defconfig too if requested
 		if [[ $KERNEL_EXPORT_DEFCONFIG == yes ]]; then
 			eval CCACHE_BASEDIR="$(pwd)" env PATH="${toolchain}:${PATH}" \
 				'make ARCH=$ARCHITECTURE CROSS_COMPILE="$CCACHE $KERNEL_COMPILER" savedefconfig'
-			[[ -f defconfig ]] && cp defconfig "${DEST}/config/${LINUXCONFIG}.defconfig"
+			[[ -f defconfig ]] && cp defconfig "${DEST}/config/${LINUXCONFIG}${FLOW}.defconfig"
 		fi
 	fi
 
@@ -225,7 +238,7 @@ compile_kernel() {
 	echo "$CALC_PATCHES" >> "${HASHTARGET}.githash"
 
 	# hash_kernel_config
-	CALC_CONFIG=$(git -C $SRC log --format="%H" -1 -- $(realpath --relative-base="$SRC" "${SRC}/config/kernel/${LINUXCONFIG}.config"))
+	CALC_CONFIG=$(git -C $SRC log --format="%H" -1 -- $(realpath --relative-base="$SRC" "${SRC}/config/kernel/${LINUXCONFIG}${FLOW}.config"))
 	[[ -z "$CALC_CONFIG" ]] && CALC_CONFIG="null"
 	echo "$CALC_CONFIG" >> "${HASHTARGET}.githash"
 
