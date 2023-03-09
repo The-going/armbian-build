@@ -66,6 +66,9 @@ compile_kernel() {
 	if [[ $KERNEL_KEEP_CONFIG == yes && -f "${DEST}"/config/$LINUXCONFIG.config ]]; then
 		display_alert "Using previous kernel config" "${DEST}/config/$LINUXCONFIG.config" "info"
 		cp -p "${DEST}/config/${LINUXCONFIG}.config" .config
+	elif [ -f "$KERNEL_KEEP_CONFIG" ]; then
+		display_alert "Using previous kernel config" "$KERNEL_KEEP_CONFIG" "info"
+		cp -p "$KERNEL_KEEP_CONFIG" .config
 	else
 		if [[ -f $USERPATCHES_PATH/$LINUXCONFIG.config ]]; then
 			display_alert "Using kernel config provided by user" "userpatches/$LINUXCONFIG.config" "info"
@@ -75,13 +78,6 @@ compile_kernel() {
 			cp -p "${SRC}/config/kernel/${LINUXCONFIG}.config" .config
 		fi
 	fi
-
-	call_extension_method "custom_kernel_config" << 'CUSTOM_KERNEL_CONFIG'
-*Kernel .config is in place, still clean from git version*
-Called after ${LINUXCONFIG}.config is put in place (.config).
-Before any olddefconfig any Kconfig make is called.
-A good place to customize the .config directly.
-CUSTOM_KERNEL_CONFIG
 
 	# hack for OdroidXU4. Copy firmare files
 	if [[ $BOARD == odroidxu4 ]]; then
@@ -110,8 +106,13 @@ CUSTOM_KERNEL_CONFIG
 		[[ ${PIPESTATUS[0]} -ne 0 ]] && exit_with_error "Error kernel menuconfig failed"
 
 		# store kernel config in easily reachable place
-		display_alert "Exporting new kernel config" "$DEST/config/$LINUXCONFIG.config" "info"
-		cp .config "${DEST}/config/${LINUXCONFIG}.config"
+		if [ -f $KERNEL_KEEP_CONFIG ]; then
+			display_alert "Exporting new kernel config" "$KERNEL_KEEP_CONFIG" "info"
+			cp -p .config "$KERNEL_KEEP_CONFIG"
+		else
+			display_alert "Exporting new kernel config" "$DEST/config/$LINUXCONFIG.config" "info"
+			cp .config "${DEST}/config/${LINUXCONFIG}.config"
+		fi
 		# export defconfig too if requested
 		if [[ $KERNEL_EXPORT_DEFCONFIG == yes ]]; then
 			eval CCACHE_BASEDIR="$(pwd)" env PATH="${toolchain}:${PATH}" \
