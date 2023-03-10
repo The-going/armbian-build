@@ -16,12 +16,12 @@
 update_initramfs() {
 	local chroot_target=$1
 	local target_dir=$(
-		find ${chroot_target}/lib/modules/ -maxdepth 1 -type d -name "*${VER}*"
+		find ${chroot_target}/lib/modules/ -maxdepth 1 -type d -name "*${KERNEL_VERSION}*"
 	)
 	if [ "$target_dir" != "" ]; then
 		update_initramfs_cmd="TMPDIR=/tmp update-initramfs -uv -k $(basename $target_dir)"
 	else
-		exit_with_error "No kernel installed for the version" "${VER}"
+		exit_with_error "No kernel installed for the version" "${KERNEL_VERSION}"
 	fi
 	display_alert "Updating initramfs..." "$update_initramfs_cmd" ""
 	cp /usr/bin/$QEMU_BINARY $chroot_target/usr/bin/
