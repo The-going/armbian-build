@@ -1,5 +1,6 @@
-# DEPRECATED:
-# This branch will not receive any further updates or fixes. Do NOT open bug reports when using it.
+## Continuation:
+### This branch will be developed further and will receive some updates and improvements only in this repository.
+### If you use this branch, then please open bug reports only in this repository and please do not discuss it on the Armbian forum.
 
 <p align="center">
   <a href="#build-framework">
