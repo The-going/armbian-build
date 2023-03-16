@@ -14,6 +14,7 @@ unmount_on_exit() {
 		bash < /dev/tty || true
 	fi
 
+	remove_tmp_local_repo "$SDCARD"
 	umount_chroot "${SDCARD}/"
 	mountpoint -q "${SRC}"/cache/toolchain && umount -l "${SRC}"/cache/toolchain
 	mountpoint -q "${SRC}"/cache/rootfs && umount -l "${SRC}"/cache/rootfs
@@ -48,6 +49,11 @@ debootstrap_ng() {
 		mount --bind "${ARMBIAN_CACHE_ROOTFS_PATH}" "${SRC}"/cache/rootfs
 	fi
 
+	# Create a new temporary local repository.
+	# Publish the repositories before installing the packages in the image.
+	display_alert "Create a new temporary local repository" "" "info"
+	create_tmp_local_repo
+
 	# stage: verify tmpfs configuration and mount
 	# CLI needs ~1.5GiB, desktop - ~3.5GiB
 	# calculate and set tmpfs mount to use 9/10 of available RAM+SWAP
@@ -70,17 +76,17 @@ debootstrap_ng() {
 Called after `create_rootfs_cache` (_prepare basic rootfs: unpack cache or create from scratch_) but before `install_distribution_specific` (_install distribution and board specific applications_).
 PRE_INSTALL_DISTRIBUTION_SPECIFIC
 
+	# Add a temporary local repository to the apt source list.
+	add_tmp_local_repo_to_source_list "$RELEASE" "$SDCARD"
+
 	# stage: install kernel and u-boot packages
 	# install distribution and board specific applications
 
 	install_distribution_specific
 	install_common
 
-	# install locally built packages
-	[[ $EXTERNAL_NEW == compile ]] && chroot_installpackages_local
-
-	# install from apt.armbian.com
-	[[ $EXTERNAL_NEW == prebuilt ]] && chroot_installpackages "yes"
+	# install locally built packages or apt.armbian.com
+	[[ -n $EXTERNAL_NEW ]] && chroot_installpackages $EXTERNAL_NEW
 
 	# stage: user customization script
 	# NOTE: installing too many packages may fill tmpfs mount
@@ -91,8 +97,13 @@ PRE_INSTALL_DISTRIBUTION_SPECIFIC
 	chroot $SDCARD /bin/bash -c "apt-get autoremove -y" > /dev/null 2>&1
 
 	# create list of all installed packages for debug purposes
-	chroot $SDCARD /bin/bash -c "dpkg -l | grep ^ii | awk '{ print \$2\",\"\$3 }'" > $DEST/${LOG_SUBPATH}/installed-packages-${RELEASE}$([[ ${BUILD_MINIMAL} == yes ]] &&
+	chroot $SDCARD /bin/bash -c "dpkg -l | awk '/^ii/ { print \$2\",\"\$3 }'" > \
+		$DEST/${LOG_SUBPATH}/installed-packages-${RELEASE}$([[ ${BUILD_MINIMAL} == yes ]] &&
 		echo "-minimal")$([[ ${BUILD_DESKTOP} == yes ]] && echo "-desktop").list 2>&1
+
+	# Delete the temporary local repository and
+	# clear the temporary source list of apt
+	remove_tmp_local_repo "$SDCARD"
 
 	# clean up / prepare for making the image
 	umount_chroot "$SDCARD"
