@@ -148,7 +148,7 @@ function prepare_and_config_main_build_single() {
 		SELECTED_CONFIGURATION="cli_minimal"
 	fi
 
-	# Type
+	# This is an empty call. Left for replacement in the future.
 	[[ ${KERNEL_CONFIGURE} == prebuilt ]] && [[ -z ${REPOSITORY_INSTALL} ]] &&
 		REPOSITORY_INSTALL="$(list_of_main_packages)${BUILD_DESKTOP:+,armbian-desktop,armbian-bsp-desktop}"
 
