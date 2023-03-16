@@ -1,67 +1,4 @@
 #!/usr/bin/env bash
-###############################################################################
-#
-# build_task_is_enabled()
-#
-# $1: _taskNameToCheck - a single task name to check for BUILD_ONLY enablement
-# return:
-#   0 - if BUILD_ONLY is empty or if the task name is listed by BUILD_ONLY
-#   1 - otherwise 
-#
-build_task_is_enabled() {
-	# remove all "
-	local _taskNameToCheck=${1//\"/}
-	local _buildOnly=${BUILD_ONLY//\"/}
-	# An empty _buildOnly allows default taskname
-	[[ -z $_buildOnly || "${_buildOnly}" == "default" ]] && return 0
-	_buildOnly=${_buildOnly//,/ }
-	for _buildOnlyTaskName in ${_buildOnly}; do
-		[[ "$_taskNameToCheck" == "$_buildOnlyTaskName" ]] && return 0
-	done
-	return 1
-}
-
-###############################################################################
-#
-# build_validate_buildOnly()
-#
-# This function validates the list of task names defined by global
-# variable BUIDL_ONLY versus the locally defined constant
-# list __all_valid_buildOnly.
-#
-# In case of future extensions, please maintain the list of valid task names
-# only here.
-#
-build_validate_buildOnly() {
-	# constant list of all valid BUILD_ONLY task names - can be :comma: or :space: separated
-	local _all_valid_buildOnly="u-boot kernel armbian-config armbian-zsh plymouth-theme-armbian armbian-firmware armbian-bsp chroot bootstrap"
-	# remove all "
-	local _buildOnly=${BUILD_ONLY//\"/}
-	# relace all :comma: by :space:
-	_all_valid_buildOnly=${_all_valid_buildOnly//,/ }
-	_buildOnly=${_buildOnly//,/ }
-	[[ -z $_buildOnly || "${_buildOnly}" == "default" ]] && return
-	local _invalidTaskNames=""
-	for _taskName in ${_buildOnly}; do
-		local _isFound=0
-		for _supportedTaskName in ${_all_valid_buildOnly}; do
-			[[ "$_taskName" == "$_supportedTaskName" ]] && _isFound=1 && break
-		done
-		if [[ $_isFound == 0 ]]; then
-			[[ -z $_invalidTaskNames ]] && _invalidTaskNames="${_taskName}" || _invalidTaskNames="${_invalidTaskNames} ${_taskName}"
-		fi
-	done
-	if [[ -n $_invalidTaskNames ]]; then
-		if [[ "${_invalidTaskNames}" == "default" ]]; then
-			display_alert "BUILD_ONLY value \"default\" must be configured as a single value only and must not be listed with other task names." "${BUILD_ONLY}" "err"
-		else
-			display_alert "BUILD_ONLY has invalid task name(s):" "${_invalidTaskNames}" "err"
-			display_alert "Use BUILD_ONLY valid task names only:" "${_all_valid_buildOnly}" "ext"
-		fi
-		display_alert "Process aborted" "" "info"
-		exit 1
-	fi
-}
 
 ###############################################################################
 #
@@ -82,26 +19,34 @@ build_only_value_for_kernel_only_build() {
 #
 # This function propagates the deprecated KERNEL_ONLY configuration
 # to the appropriate content of the BUILD_ONLY configuration.
+# If KERNEL_ONLY="yes" it actually meant to build only packages using cross
+# compilation.
+# If KERNEL_ONLY="no" it added an image assembly.
+# We are adding a collective target "default"
+#
 # It exists for backward compatibility only.
 #
 backward_compatibility_build_only() {
-	local _kernel_buildOnly=$(build_only_value_for_kernel_only_build)
+	local _build_packages=$(list_of_main_packages)
+	# build default = "$_build_packages bootstrap"
 
 	# These checks are necessary for backward compatibility with logic
-	# https://github.com/armbian/scripts/tree/master /.github/workflows scripts.
+	# https://github.com/armbian/scripts/tree/master/.github/workflows scripts.
 	# They need to be removed when the need disappears there.
 	[[ -n $KERNEL_ONLY ]] && {
 		display_alert "The KERNEL_ONLY key is no longer used." "KERNEL_ONLY=$KERNEL_ONLY" "wrn"
 		if [ "$KERNEL_ONLY" == "no" ]; then
-			display_alert "Use BUILD_ONLY=default instead" "" "info"
+			display_alert "Use BUILD_ONLY variable instead" "default" "info"
 			[[ -n "${BUILD_ONLY}" ]] && {
 				display_alert "A contradiction. BUILD_ONLY contains a goal. Fix it." "${BUILD_ONLY}" "wrn"
+				BUILD_ONLY="default"
+				display_alert "Enforced BUILD_ONLY to default target." "$BUILD_ONLY" "info"
 			}
 			BUILD_ONLY="default"
 			display_alert "BUILD_ONLY enforced to:" "${BUILD_ONLY}" "info"
 		elif [ "$KERNEL_ONLY" == "yes" ]; then
-			display_alert "Instead, use BUILD_ONLY to select the build target." "$_kernel_buildOnly" "wrn"
-			BUILD_ONLY="$_kernel_buildOnly"
+			display_alert "Instead, use BUILD_ONLY to select the build target." "$_build_packages" "wrn"
+			BUILD_ONLY="$_build_packages"
 			display_alert "BUILD_ONLY enforced to:" "${BUILD_ONLY}" "info"
 		fi
 	}
@@ -139,20 +84,22 @@ build_uboot() {
 	[[ "${BOOTCONFIG}" != "none" ]] && {
 		# Compile u-boot if packed .deb does not exist or use the one from repository
 		if [[ ! -f "${DEB_STORAGE}"/${CHOSEN_UBOOT}_${REVISION}_${ARCH}.deb ]]; then
-			if [[ -n "${ATFSOURCE}" && "${REPOSITORY_INSTALL}" != *u-boot* ]]; then
+			if [[ -n "${ATFSOURCE}" ]]; then
 				compile_atf
 			fi
-			[[ "${REPOSITORY_INSTALL}" != *u-boot* ]] && compile_uboot
+			compile_uboot
 		fi
 	}
 }
 
 build_kernel() {
+	# CHOSEN_KERNEL=linux-image-${BRANCH}-${LINUXFAMILY}
+	# filename = pkgname_pkgversion_arch.deb
 	# Compile kernel if packed .deb does not exist or use the one from repository
-	if [[ ! -f ${DEB_STORAGE}/${CHOSEN_KERNEL}_${REVISION}_${ARCH}.deb ]]; then
+	if [[ ! -f ${DEB_STORAGE}/${RELEASE}/linux-${BRANCH}/${CHOSEN_KERNEL}_*_${ARCH}.deb ]]; then
 
 		KDEB_CHANGELOG_DIST=$RELEASE
-		[[ -n $KERNELSOURCE ]] && [[ "${REPOSITORY_INSTALL}" != *kernel* ]] && compile_kernel
+		[[ -n $KERNELSOURCE ]] && compile_kernel
 
 	fi
 }
@@ -161,7 +108,7 @@ build_armbian-config() {
 	# Compile armbian-config if packed .deb does not exist or use the one from repository
 	if [[ ! -f ${DEB_STORAGE}/armbian-config_${REVISION}_all.deb ]]; then
 
-		[[ "${REPOSITORY_INSTALL}" != *armbian-config* ]] && compile_armbian-config
+		compile_armbian-config
 
 	fi
 }
@@ -170,7 +117,7 @@ build_armbian-zsh() {
 	# Compile armbian-zsh if packed .deb does not exist or use the one from repository
 	if [[ ! -f ${DEB_STORAGE}/armbian-zsh_${REVISION}_all.deb ]]; then
 
-		[[ "${REPOSITORY_INSTALL}" != *armbian-zsh* ]] && compile_armbian-zsh
+		compile_armbian-zsh
 
 	fi
 }
@@ -179,7 +126,7 @@ build_plymouth-theme-armbian() {
 	# Compile plymouth-theme-armbian if packed .deb does not exist or use the one from repository
 	if [[ ! -f ${DEB_STORAGE}/plymouth-theme-armbian_${REVISION}_all.deb ]]; then
 
-		[[ "${REPOSITORY_INSTALL}" != *plymouth-theme-armbian* ]] && compile_plymouth-theme-armbian
+		compile_plymouth-theme-armbian
 
 	fi
 }
@@ -188,8 +135,8 @@ build_armbian-firmware() {
 	# Compile armbian-firmware if packed .deb does not exist or use the one from repository
 	if ! ls "${DEB_STORAGE}/armbian-firmware_${REVISION}_all.deb" 1> /dev/null 2>&1 || ! ls "${DEB_STORAGE}/armbian-firmware-full_${REVISION}_all.deb" 1> /dev/null 2>&1; then
 
-		if [[ "${REPOSITORY_INSTALL}" != *armbian-firmware* ]]; then
-			[[ "${INSTALL_ARMBIAN_FIRMWARE:-yes}" == "yes" ]] && { # Build firmware by default.
+			 # Build firmware by default.
+			[[ "${INSTALL_ARMBIAN_FIRMWARE:-yes}" == "yes" ]] && {
 				FULL=""
 				REPLACE="-full"
 				compile_firmware
@@ -198,23 +145,34 @@ build_armbian-firmware() {
 				compile_firmware
 			}
 
-		fi
-
 	fi
 }
 
-build_armbian-bsp() {
+build_armbian-bsp-cli() {
 	# create board support package
-	[[ -n "${RELEASE}" && ! -f "${DEB_STORAGE}/${BSP_CLI_PACKAGE_FULLNAME}.deb" && "${REPOSITORY_INSTALL}" != *armbian-bsp-cli* ]] && create_board_package
+	[[ -n "${RELEASE}" && \
+		! -f "${DEB_STORAGE}/${BSP_CLI_PACKAGE_FULLNAME}.deb" ]] && \
+		create_board_package
+}
 
+build_armbian-desktop() {
 	# create desktop package
-	[[ -n "${RELEASE}" && "${DESKTOP_ENVIRONMENT}" && ! -f "${DEB_STORAGE}/$RELEASE/${CHOSEN_DESKTOP}_${REVISION}_all.deb" && "${REPOSITORY_INSTALL}" != *armbian-desktop* ]] && create_desktop_package
-	[[ -n "${RELEASE}" && "${DESKTOP_ENVIRONMENT}" && ! -f "${DEB_STORAGE}/${RELEASE}/${BSP_DESKTOP_PACKAGE_FULLNAME}.deb" && "${REPOSITORY_INSTALL}" != *armbian-bsp-desktop* ]] && create_bsp_desktop_package
+	[[ -n "${RELEASE}" && \
+		"${DESKTOP_ENVIRONMENT}" && \
+		! -f "${DEB_STORAGE}/$RELEASE/${CHOSEN_DESKTOP}_${REVISION}_all.deb" ]] && \
+		create_desktop_package
+}
+
+build_armbian-bsp-desktop() {
+	[[ -n "${RELEASE}" && \
+		"${DESKTOP_ENVIRONMENT}" && \
+		! -f "${DEB_STORAGE}/${RELEASE}/${BSP_DESKTOP_PACKAGE_FULLNAME}.deb" ]] && \
+		create_bsp_desktop_package
 }
 
 build_chroot() {
 	# build additional packages
-	[[ $EXTERNAL_NEW == compile ]] && chroot_build_packages
+	chroot_build_packages $EXTERNAL_NEW
 }
 
 build_bootstrap() {
@@ -260,15 +218,18 @@ build_main() {
 		build_task_is_enabled "u-boot" && build_get_boot_sources
 		build_task_is_enabled "kernel" && build_get_kernel_sources
 
-		call_extension_method "fetch_sources_tools" <<- 'FETCH_SOURCES_TOOLS'
+		build_task_is_enabled "host-tools" && {
+
+			call_extension_method "fetch_sources_tools" <<- 'FETCH_SOURCES_TOOLS'
 			*fetch host-side sources needed for tools and build*
 			Run early to fetch_from_repo or otherwise obtain sources for needed tools.
-		FETCH_SOURCES_TOOLS
+			FETCH_SOURCES_TOOLS
 
-		call_extension_method "build_host_tools" <<- 'BUILD_HOST_TOOLS'
+			call_extension_method "build_host_tools" <<- 'BUILD_HOST_TOOLS'
 			*build needed tools for the build, host-side*
 			After sources are fetched, build host-side tools needed for the build.
-		BUILD_HOST_TOOLS
+			BUILD_HOST_TOOLS
+		}
 
 		for option in $(tr ',' ' ' <<< "$CLEAN_LEVEL"); do
 			[[ $option != sources ]] && cleaning "$option"
@@ -289,7 +250,11 @@ build_main() {
 
 	overlayfs_wrapper "cleanup"
 
-	build_task_is_enabled "armbian-bsp" && build_armbian-bsp
+	build_task_is_enabled "armbian-bsp-cli" && build_armbian-bsp-cli
+
+	build_task_is_enabled "armbian-desktop" && build_armbian-desktop
+
+	build_task_is_enabled "armbian-bsp-desktop" && build_armbian-bsp-desktop
 
 	# skip image creation if exists. useful for CI when making a lot of images
 	if [ "$IMAGE_PRESENT" == yes ] && ls "${FINALDEST}/${VENDOR}_${REVISION}_${BOARD^}_${RELEASE}_${BRANCH}_${VER/-$LINUXFAMILY/}${DESKTOP_ENVIRONMENT:+_$DESKTOP_ENVIRONMENT}"*.xz 1> /dev/null 2>&1; then
