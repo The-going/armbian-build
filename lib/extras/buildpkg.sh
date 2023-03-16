@@ -146,11 +146,34 @@ chroot_prepare_distccd() {
 	chown -R distccd /tmp/distcc
 }
 
+# Create a clean environment archive if it does not exist.
+#
+#	$1: $RELEASE
+#	$2: $ARCH
+#	$3: ${CHROOT_CACHE_VERSION}
+#
+create_clean_environment_archive() {
+	local release=$1
+	local arch=$2
+	local t_name=${release}-${arch}-v${3}
+	local tmp_dir=$(mktemp -d "${SRC}"/.tmp/debootstrap-XXXXX)
+
+	create_chroot "${tmp_dir}/${t_name}" "${release}" "${arch}"
+	display_alert "Create a clean Environment archive" "${t_name}.tar.xz" "info"
+	(
+		tar -cp --directory="${tmp_dir}/" ${t_name} |
+			pv -p -b -r -s "$(du -sb "${tmp_dir}/${t_name}" | cut -f1)" |
+			pixz -4 > "${SRC}/cache/buildpkg/${t_name}.tar.xz"
+	)
+	rm -rf $tmp_dir
+}
+
 # chroot_build_packages
 #
 chroot_build_packages() {
 	local built_ok=()
 	local failed=()
+	local selected_packages=$@
 	mkdir -p ${SRC}/cache/buildpkg
 
 	if [[ $IMAGE_TYPE == user-built ]]; then
@@ -213,7 +236,7 @@ chroot_build_packages() {
 				exit_with_error "Clean Environment is not visible" "$target_dir"
 
 			local t=$target_dir/root/.update-timestamp
-			if [[ ! -f ${t} || $((($(date +%s) - $(< "${t}")) / 86400)) -gt 7 ]]; then
+			if [[ ! -f ${t} || $((($(date +%s) - $(< "${t}")) / 86400)) -gt 3 ]]; then
 				display_alert "Upgrading packages" "$release/$arch" "info"
 				systemd-nspawn -a -q -D "${target_dir}" /bin/bash -c "apt-get -q update; apt-get -q -y upgrade; apt-get clean"
 				date +%s > "${t}"
@@ -226,7 +249,33 @@ chroot_build_packages() {
 				)
 			fi
 
-			for plugin in "${SRC}"/packages/extras-buildpkgs/*.conf; do
+			if [[ -n "$selected_packages" ]]; then
+				display_alert "Selected packages for chroot: " "$selected_packages" "info"
+				local config_for_packages=""
+
+				for n in $selected_packages; do
+					if [ -d "${USERPATCHES_PATH}"/packages/extras-buildpkgs/${n} ]; then
+						config_for_packages="$config_for_packages $(
+							find "${USERPATCHES_PATH}"/packages/extras-buildpkgs/ \
+								-maxdepth 1 -name '*'${n}'*.conf')"
+						# Continue if a custom configuration is found.
+						display_alert "Custom config:" "$config_for_packages" "ext"
+					else
+						config_for_packages="$config_for_packages $(
+							find "${SRC}"/packages/extras-buildpkgs/ \
+								-maxdepth 1 -name '*'${n}'*.conf')"
+					fi
+				done
+
+			else
+				local config_for_packages=$(
+					find "${SRC}"/packages/extras-buildpkgs/ \
+						-maxdepth 1 -name '*.conf'
+				)
+			fi
+
+			display_alert "Final config:" "$config_for_packages" "ext"
+			for plugin in $config_for_packages; do
 				unset package_name package_repo package_ref package_builddeps package_install_chroot package_install_target \
 					package_upstream_version needs_building plugin_target_dir package_component "package_builddeps_${release}"
 				source "${plugin}"
@@ -237,22 +286,12 @@ chroot_build_packages() {
 					continue
 				fi
 
-				local plugin_target_dir=${DEB_STORAGE}/extra/$package_component/
+				local plugin_target_dir="${DEB_STORAGE}/${release}/${package_name}/"
 				mkdir -p "${plugin_target_dir}"
 
 				# check if needs building
-				local needs_building=no
-				if [[ -n $package_install_target ]]; then
-					for f in $package_install_target; do
-						if [[ -z $(find "${plugin_target_dir}" -name "${f}_*$REVISION*_$arch.deb") ]]; then
-							needs_building=yes
-							break
-						fi
-					done
-				else
-					needs_building=yes
-				fi
-				if [[ $needs_building == no ]]; then
+				echo "$(find "${plugin_target_dir}" -name "${f}"_'*'_"$arch".deb)"
+				if [[ -f $(find "${plugin_target_dir}" -name "${f}"_'*'_"$arch".deb) ]]; then
 					display_alert "Packages are up to date" "$package_name $release/$arch" "info"
 					continue
 				fi
@@ -276,6 +315,20 @@ chroot_build_packages() {
 				local dist_builddeps_name="package_builddeps_${release}"
 				[[ -v $dist_builddeps_name ]] && package_builddeps="${package_builddeps} ${!dist_builddeps_name}"
 
+				local pkg_linux_libcdev
+				if ! pkg_linux_libcdev="$(
+						find ${DEB_STORAGE}/${release}/linux-${BRANCH}/ \
+						-name 'linux-libc-dev*' 2>/dev/null)"; then
+					display_alert "Used system pkg:" " linux-libc-dev " "info"
+				elif [ $(echo -e "$pkg_linux_libcdev" | wc -l) -gt 1 ]; then
+					display_alert "An ambiguous situation." "Multiple linux-libc-dev files found" "wrn"
+					display_alert "Used system pkg:" " linux-libc-dev " "info"
+				else
+					display_alert "Used pkg:" " $pkg_linux_libcdev " "info"
+					cp $pkg_linux_libcdev "${target_dir}"/root/
+					file_linux_libcdev="/root/$(basename $pkg_linux_libcdev)"
+				fi
+
 				# create build script
 				LOG_OUTPUT_FILE=/root/build-"${package_name}".log
 				create_build_script
@@ -287,17 +340,21 @@ chroot_build_packages() {
 					--capability=CAP_MKNOD -D "${target_dir}" \
 					--tmpfs=/root/build \
 					--tmpfs=/tmp:mode=777 \
-					--bind-ro "${SRC}"/packages/extras-buildpkgs/:/root/overlay \
+					--bind-ro "$(dirname $plugin)"/:/root/overlay \
 					--bind-ro "${SRC}"/cache/sources/extra/:/root/sources /bin/bash -c "/root/build.sh" \
-					${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/buildpkg.log'} 2>&1
+					${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/buildpkg.log'} 2>&1 \
+					';EVALPIPE=(${PIPESTATUS[@]})'
 
-				if [[ ${PIPESTATUS[0]} -eq 2 ]]; then
+				if [[ ${EVALPIPE[0]} -ne 0 ]]; then
 					failed+=("$package_name:$release/$arch")
+					mv "${target_dir}"/root/build.sh "$DEST/${LOG_SUBPATH}/"
 				else
 					built_ok+=("$package_name:$release/$arch")
+					mv "${target_dir}"/root/"$package_name"*"$arch"* "${plugin_target_dir}" 2> /dev/null
 				fi
-				mv "${target_dir}"/root/*.deb "${plugin_target_dir}" 2> /dev/null
+
 				mv "${target_dir}"/root/*.log "$DEST/${LOG_SUBPATH}/"
+
 				te=$(date +%s)
 				display_alert "Build time $package_name " " $(($te - $ts)) sec." "info"
 			done
@@ -321,147 +378,110 @@ chroot_build_packages() {
 	fi
 }
 
+# Check the debian build version
+# depends: devscripts
+#   "$1" - Full path to the pkgname/debian directory
+#   "$2" - Full path to target build directory
+check_debian_build_version() {
+	local src_dir="$1"
+	local dst_dir="$2"
+
+	if [ -f $src_dir/debian/watch ]; then
+
+		for n in $(
+			cd $src_dir; uscan -v | awk '$1 ~ /^version|^package/{print $1 $2 $3}'
+			)
+		do
+			eval "local $n"
+		done
+		# DEBUG
+		echo "package=:$package" >&2
+		echo "version=:$version" >&2
+	fi
+
+	local tarball=$(find ${dst_dir}/ -name ${package}_${version}.orig.tar'*')
+	if [ "$tarball" == "" ]; then
+		$(cd $src_dir; uscan --download-current-version --destdir "$dst_dir")
+	else
+		echo -e "Tarball exist:\n$tarball"
+	fi
+
+} # apt-cache show devscripts
+
+
 # create build script
 create_build_script() {
-	cat <<- EOF > "${target_dir}"/root/build.sh
-		#!/bin/bash
-		export PATH="/usr/lib/ccache:\$PATH"
-		export HOME="/root"
-		export DEBIAN_FRONTEND="noninteractive"
-		export DEB_BUILD_OPTIONS="nocheck noautodbgsym"
-		export CCACHE_TEMPDIR="/tmp"
-		# distcc is disabled to prevent compilation issues due
-		# to different host and cross toolchain configurations
-		#export CCACHE_PREFIX="distcc"
-		# uncomment for debug
-		#export CCACHE_RECACHE="true"
-		#export CCACHE_DISABLE="true"
-		export DISTCC_HOSTS="$distcc_bindaddr"
-		export DEBFULLNAME="$MAINTAINER"
-		export DEBEMAIL="$MAINTAINERMAIL"
-		$(declare -f display_alert)
+	cat <<-EOF > "${target_dir}"/root/build.sh
+	#!/bin/bash
+	export PATH="/usr/lib/ccache:\$PATH"
+	export HOME="/root"
+	export DEBIAN_FRONTEND="noninteractive"
+	export DEB_BUILD_OPTIONS="nocheck noautodbgsym"
+	export CCACHE_TEMPDIR="/tmp"
+	# distcc is disabled to prevent compilation issues due
+	# to different host and cross toolchain configurations
+	#export CCACHE_PREFIX="distcc"
+	# uncomment for debug
+	#export CCACHE_RECACHE="true"
+	#export CCACHE_DISABLE="true"
+	export DISTCC_HOSTS="$distcc_bindaddr"
+	export DEBFULLNAME="$MAINTAINER"
+	export DEBEMAIL="$MAINTAINERMAIL"
+	$(declare -f display_alert)
 
-		LOG_OUTPUT_FILE=$LOG_OUTPUT_FILE
-		$(declare -f install_pkg_deb)
+	LOG_OUTPUT_FILE=$LOG_OUTPUT_FILE
+	$(declare -f install_pkg_deb)
 
-		cd /root/build
+	cd /root/build
+
+	if [ -d /root/sources/${package_name}/.git ]; then
 		display_alert "Copying sources"
 		rsync -aq /root/sources/"${package_name}" /root/build/
 
-		cd /root/build/"${package_name}"
-		# copy overlay / "debianization" files
-		[[ -d "/root/overlay/${package_name}/" ]] && rsync -aq /root/overlay/"${package_name}" /root/build/
+	elif [ -f /root/sources/${package_name}/${package_name}-*.tar.gz ]; then
+		display_alert "Tarbal exist" "\$(ls /root/sources/${package_name}/*.tar.*)" "info"
+	fi
 
-		package_builddeps="$package_builddeps"
-		if [ -z "\$package_builddeps" ]; then
-			# Calculate build dependencies by a standard dpkg function
-			package_builddeps="\$(dpkg-checkbuilddeps |& awk -F":" '{print \$NF}')"
-		fi
-		if [[ -n "\${package_builddeps}" ]]; then
-			install_pkg_deb \${package_builddeps}
-		fi
+	cd /root/build/"${package_name}"
+	# copy overlay / "debianization" files
+	[[ -d "/root/overlay/${package_name}/" ]] && rsync -aq /root/overlay/"${package_name}" /root/build/
 
-		# set upstream version
-		[[ -n "${package_upstream_version}" ]] && debchange --preserve --newversion "${package_upstream_version}" "Import from upstream"
+	package_builddeps="$package_builddeps"
+	if [ -z "\$package_builddeps" ]; then
+		# Calculate build dependencies by a standard dpkg function
+		#echo "\$(dpkg-checkbuilddeps)" >&2
+		package_builddeps="\$(dpkg-checkbuilddeps |& awk -F":" '{print \$NF}')"
+	fi
 
-		# set local version
-		# debchange -l~armbian${REVISION}-${builddate}+ "Custom $VENDOR release"
-		debchange -l~armbian"${REVISION}"+ "Custom $VENDOR release"
+	if [[ -n "\${package_builddeps}" ]]; then
+		echo "install_pkg_deb verbose \${package_builddeps}" >&2
+		install_pkg_deb verbose \${package_builddeps} $file_linux_libcdev
+	fi
 
-		display_alert "Building package"
-		# Set the number of build threads and certainly send
-		# the standard error stream to the log file.
-		dpkg-buildpackage -b -us -j${NCPU_CHROOT:-2} 2>>\$LOG_OUTPUT_FILE
+	# set upstream version
+	[[ -n "${package_upstream_version}" ]] && \\
+	debchange --preserve --newversion "${package_upstream_version}" "Import from upstream"
 
-		if [[ \$? -eq 0 ]]; then
-			cd /root/build
-			# install in chroot if other libraries depend on them
-			if [[ -n "$package_install_chroot" ]]; then
-				display_alert "Installing packages"
-				for p in $package_install_chroot; do
-					dpkg -i \${p}_*.deb
-				done
-			fi
-			display_alert "Done building" "$package_name $release/$arch" "ext"
-			ls *.deb 2>/dev/null
-			mv *.deb /root 2>/dev/null
-			exit 0
-		else
-			display_alert "Failed building" "$package_name $release/$arch" "err"
-			exit 2
-		fi
-	EOF
+	# set local version
+	# debchange -l~armbian${REVISION}-${builddate}+ "Custom $VENDOR release"
+	debchange -l~${VENDOR}2+ "Custom $VENDOR release"
+
+	display_alert "Building package"
+	# Set the number of build threads and certainly send
+	# the standard error stream to the log file.
+	dpkg-buildpackage -b -us -j${NCPU_CHROOT:-2} 2>>\$LOG_OUTPUT_FILE
+
+	if [[ \$? -eq 0 ]] && \\
+		package_version=\$(dpkg-deb -f /root/build/${package_name}_*_${arch}.deb Version); then
+
+		display_alert "Done building" "$package_name (\$package_version) $release/$arch" "ext"
+		mv /root/build/${package_name}_\${package_version}_${arch}.* /root 2>/dev/null
+		exit 0
+	else
+		display_alert "Failed building" "$package_name $release/$arch" "err"
+		exit 2
+	fi
+EOF
 
 	chmod +x "${target_dir}"/root/build.sh
-}
-
-# chroot_installpackages_local
-#
-chroot_installpackages_local() {
-	local conf="${SRC}"/config/aptly-temp.conf
-	rm -rf /tmp/aptly-temp/
-	mkdir -p /tmp/aptly-temp/
-	aptly -config="${conf}" repo create temp >> "${DEST}"/${LOG_SUBPATH}/install.log
-	# NOTE: this works recursively
-	aptly -config="${conf}" repo add temp "${DEB_STORAGE}/extra/${RELEASE}-desktop/" >> "${DEST}"/${LOG_SUBPATH}/install.log
-	aptly -config="${conf}" repo add temp "${DEB_STORAGE}/extra/${RELEASE}-utils/" >> "${DEST}"/${LOG_SUBPATH}/install.log
-	# -gpg-key="925644A6"
-	aptly -keyring="${SRC}/packages/extras-buildpkgs/buildpkg-public.gpg" -secret-keyring="${SRC}/packages/extras-buildpkgs/buildpkg.gpg" -batch=true -config="${conf}" \
-		-gpg-key="925644A6" -passphrase="testkey1234" -component=temp -distribution="${RELEASE}" publish repo temp >> "${DEST}"/${LOG_SUBPATH}/install.log
-	aptly -config="${conf}" -listen=":8189" serve &
-	local aptly_pid=$!
-	cp "${SRC}"/packages/extras-buildpkgs/buildpkg.key "${SDCARD}"/tmp/buildpkg.key
-	cat <<- 'EOF' > "${SDCARD}"/etc/apt/preferences.d/90-armbian-temp.pref
-		Package: *
-		Pin: origin "localhost"
-		Pin-Priority: 550
-	EOF
-	cat <<- EOF > "${SDCARD}"/etc/apt/sources.list.d/armbian-temp.list
-		deb http://localhost:8189/ $RELEASE temp
-	EOF
-	chroot_installpackages
-	kill "${aptly_pid}"
-}
-
-# chroot_installpackages <remote_only>
-#
-chroot_installpackages() {
-	local remote_only=$1
-	local install_list=""
-	for plugin in "${SRC}"/packages/extras-buildpkgs/*.conf; do
-		source "${plugin}"
-		if [[ $(type -t package_checkinstall) == function ]] && package_checkinstall; then
-			install_list="$install_list $package_install_target"
-		fi
-		unset package_install_target package_checkinstall
-	done
-	if [[ -n $PACKAGE_LIST_RM ]]; then
-		install_list=$(sed -r "s/\W($(tr ' ' '|' <<< ${PACKAGE_LIST_RM}))\W/ /g" <<< " ${install_list} ")
-		install_list="$(echo ${install_list})"
-	fi
-	display_alert "Installing extras-buildpkgs" "$install_list"
-
-	[[ $NO_APT_CACHER != yes ]] && local apt_extra="-o Acquire::http::Proxy=\"http://${APT_PROXY_ADDR:-localhost:3142}\" -o Acquire::http::Proxy::localhost=\"DIRECT\""
-	cat <<- EOF > "${SDCARD}"/tmp/install.sh
-		#!/bin/bash
-		[[ "$remote_only" != yes ]] && apt-key add /tmp/buildpkg.key
-		apt-get ${apt_extra} -q update
-		# uncomment to debug
-		# /bin/bash
-		# TODO: check if package exists in case new config was added
-		#if [[ -n "$remote_only" == yes ]]; then
-		# for p in ${install_list}; do
-		#  if grep -qE "apt.armbian.com|localhost" <(apt-cache madison \$p); then
-		#  if apt-get -s -qq install \$p; then
-		#fi
-		apt-get -q ${apt_extra} --show-progress -o DPKG::Progress-Fancy=1 install -y ${install_list}
-		apt-get clean
-		[[ "${remote_only}" != yes ]] && apt-key del "925644A6"
-		rm /etc/apt/sources.list.d/armbian-temp.list 2>/dev/null
-		rm /etc/apt/preferences.d/90-armbian-temp.pref 2>/dev/null
-		rm /tmp/buildpkg.key 2>/dev/null
-		rm -- "\$0"
-	EOF
-	chmod +x "${SDCARD}"/tmp/install.sh
-	chroot "${SDCARD}" /bin/bash -c "/tmp/install.sh" >> "${DEST}"/${LOG_SUBPATH}/install.log 2>&1
 }
