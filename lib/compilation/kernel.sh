@@ -120,6 +120,11 @@ CUSTOM_KERNEL_CONFIG
 		fi
 	fi
 
+	# kernel package name extension
+	NAME_EXTENSION="${NAME_EXTENSION:-${BRANCH}-$LINUXFAMILY}"
+	# Vendor package revision
+	VENDOR_PKG_REVISION=${VENDOR}.${REVISION%-*}
+
 	# create linux-source package - with already patched sources
 	# We will build this package first and clear the memory.
 	if [[ $BUILD_KSRC != no ]]; then
@@ -131,7 +136,8 @@ CUSTOM_KERNEL_CONFIG
 		'make $CTHREADS ARCH=$ARCHITECTURE \
 		CROSS_COMPILE="$CCACHE $KERNEL_COMPILER" \
 		$SRC_LOADADDR \
-		LOCALVERSION="-$LINUXFAMILY" \
+		VENDOR_PKG_REVISION=$VENDOR_PKG_REVISION \
+		NAME_EXTENSION=$NAME_EXTENSION \
 		$KERNEL_IMAGE_TYPE ${KERNEL_EXTRA_TARGETS:-modules dtbs} 2>>$DEST/${LOG_SUBPATH}/compilation.log' \
 		${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/compilation.log'} \
 		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" \
@@ -156,10 +162,9 @@ CUSTOM_KERNEL_CONFIG
 	echo -e "\n\t== deb packages: image, headers, firmware, dtb ==\n" >> "${DEST}"/${LOG_SUBPATH}/compilation.log
 	eval CCACHE_BASEDIR="$(pwd)" env PATH="${toolchain}:${PATH}" \
 		'make $CTHREADS $kernel_packing \
-		KDEB_PKGVERSION=$REVISION \
+		VENDOR_PKG_REVISION=$VENDOR_PKG_REVISION \
 		KDEB_COMPRESS=${DEB_COMPRESS} \
-		BRANCH=$BRANCH \
-		LOCALVERSION="-${LINUXFAMILY}" \
+		NAME_EXTENSION=$NAME_EXTENSION \
 		KBUILD_DEBARCH=$ARCH \
 		ARCH=$ARCHITECTURE \
 		DEBFULLNAME="$MAINTAINER" \
@@ -173,7 +178,8 @@ CUSTOM_KERNEL_CONFIG
 	# remove firmare image packages here - easier than patching ~40 packaging scripts at once
 	rm -f linux-firmware-image-*.deb
 
-	rsync --remove-source-files -rq ./*.deb "${DEB_STORAGE}/" || exit_with_error "Failed moving kernel DEBs"
+	mkdir -p "${DEB_STORAGE}/${RELEASE}/linux-${BRANCH}"
+	rsync --remove-source-files -rq ./linux-* "${DEB_STORAGE}/${RELEASE}/linux-${BRANCH}/" || exit_with_error "Failed moving kernel DEBs"
 
 	# store git hash to the file and create a change log
 	HASHTARGET="${SRC}/cache/hash"$([[ ${BETA} == yes ]] && echo "-beta")"/linux-image-${BRANCH}-${LINUXFAMILY}"
