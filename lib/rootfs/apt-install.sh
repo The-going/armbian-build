@@ -1,19 +1,8 @@
 #!/usr/bin/env bash
 install_deb_chroot() {
 
-	local package=$1
-	local variant=$2
-	local transfer=$3
-	local name
-	local desc
-	if [[ ${variant} != remote ]]; then
-		name="/root/"$(basename "${package}")
-		[[ ! -f "${SDCARD}${name}" ]] && cp "${package}" "${SDCARD}${name}"
-		desc=""
-	else
-		name=$1
-		desc=" from repository"
-	fi
+	local name=$1
+	local desc=" from repository"
 
 	local version=$(
 		chroot "${SDCARD}" /bin/bash -c "apt-cache policy $name | \
@@ -35,7 +24,6 @@ install_deb_chroot() {
 		"${DEST}"/${LOG_SUBPATH}/install.log 2>&1
 
 	[[ $? -ne 0 ]] && exit_with_error "Installation of $name failed" "${BOARD} ${RELEASE} ${BUILD_DESKTOP} ${LINUXFAMILY}"
-	[[ ${variant} == remote && ${transfer} == yes ]] && rsync -rq "${SDCARD}"/var/cache/apt/archives/*.deb ${DEB_STORAGE}/
 
 	RET_VERSION=$version
 }

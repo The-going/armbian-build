@@ -274,7 +274,7 @@ install_common() {
 
 	# install u-boot
 	[[ "${BOOTCONFIG}" != "none" ]] && {
-		install_deb_chroot "linux-u-boot-${BOARD}-${BRANCH}" "remote" "yes"
+		install_deb_chroot "linux-u-boot-${BOARD}-${BRANCH}"
 		UBOOT_VERSION=$RET_VERSION
 	}
 
@@ -286,20 +286,20 @@ PRE_INSTALL_KERNEL_DEBS
 	# install kernel
 	[[ -n $KERNELSOURCE ]] && {
 
-		install_deb_chroot "linux-image-${BRANCH}-${LINUXFAMILY}" "remote"
+		install_deb_chroot "linux-image-${BRANCH}-${LINUXFAMILY}"
 		# version aka $(uname -r)
 		KERNEL_VERSION="${RET_VERSION%-*}"
 
 		# If does not have dtb package
 		if [[ "${ARCH}" != "amd64" && "${LINUXFAMILY}" != "media" && "${LINUXFAMILY}" != station* ]]; then
-			install_deb_chroot "linux-dtb-${BRANCH}-${LINUXFAMILY}" "remote"
+			install_deb_chroot "linux-dtb-${BRANCH}-${LINUXFAMILY}"
 		fi
 
 		if [[ $INSTALL_HEADERS == yes ]]; then
 			chroot "${SDCARD}" /bin/bash -c "DEBIAN_FRONTEND=noninteractive \
 					apt-get ${APT_EXTRA_DIST_PARAMS} -yqq --no-install-recommends \
 					install build-essential kmod debhelper devscripts" >> "${DEST}"/${LOG_SUBPATH}/install.log
-			install_deb_chroot "linux-headers-${BRANCH}-${LINUXFAMILY}" "remote"
+			install_deb_chroot "linux-headers-${BRANCH}-${LINUXFAMILY}"
 		fi
 
 	}
@@ -311,47 +311,47 @@ If `KERNELSOURCE` is (still?) unset after this, Armbian-built firmware will not 
 POST_INSTALL_KERNEL_DEBS
 
 	# install board support packages
-	install_deb_chroot "${CHOSEN_ROOTFS}" "remote"
+	install_deb_chroot "${CHOSEN_ROOTFS}"
 
 	# install armbian-desktop
 	if [[ $BUILD_DESKTOP == yes ]]; then
-		install_deb_chroot "${CHOSEN_DESKTOP}" "remote"
+		install_deb_chroot "${CHOSEN_DESKTOP}"
 		# install display manager and PACKAGE_LIST_DESKTOP_FULL packages if enabled per board
 		desktop_postinstall
 	fi
 
 	# install armbian-firmware by default. Set BOARD_FIRMWARE_INSTALL="-full" to install full firmware variant
 	[[ "${INSTALL_ARMBIAN_FIRMWARE:-yes}" == "yes" ]] && {
-			install_deb_chroot "armbian-firmware${BOARD_FIRMWARE_INSTALL:-""}" "remote"
+			install_deb_chroot "armbian-firmware${BOARD_FIRMWARE_INSTALL:-""}"
 	}
 
 	# install armbian-config
 	if [[ "${PACKAGE_LIST_RM}" != *armbian-config* ]]; then
 		if [[ $BUILD_MINIMAL != yes ]]; then
-			install_deb_chroot "armbian-config" "remote"
+			install_deb_chroot "armbian-config"
 		fi
 	fi
 
 	# install armbian-zsh
 	if [[ "${PACKAGE_LIST_RM}" != *armbian-zsh* ]]; then
 		if [[ $BUILD_MINIMAL != yes ]]; then
-			install_deb_chroot "armbian-zsh" "remote"
+			install_deb_chroot "armbian-zsh"
 		fi
 	fi
 
 	# install plymouth-theme-armbian
 	if [[ $PLYMOUTH == yes ]]; then
-		install_deb_chroot "armbian-plymouth-theme" "remote"
+		install_deb_chroot "armbian-plymouth-theme"
 	fi
 
 	# install kernel sources
-	if [[ -f ${DEB_STORAGE}/${CHOSEN_KSRC}_${REVISION}_all.deb && $INSTALL_KSRC == yes ]]; then
-		install_deb_chroot "${DEB_STORAGE}/${CHOSEN_KSRC}_${REVISION}_all.deb"
+	if [[ $INSTALL_KSRC == yes ]]; then
+		install_deb_chroot "${CHOSEN_KSRC}"
 	fi
 
 	# install wireguard tools
 	if [[ $WIREGUARD == yes ]]; then
-		install_deb_chroot "wireguard-tools" "remote"
+		install_deb_chroot "wireguard-tools"
 	fi
 
 	# freeze armbian packages
