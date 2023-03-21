@@ -215,10 +215,8 @@ build_main() {
 
 	# ignore updates help on building all images - for internal purposes
 	if [[ $IGNORE_UPDATES != yes ]]; then
-		build_task_is_enabled "u-boot" && build_get_boot_sources
-		build_task_is_enabled "kernel" && build_get_kernel_sources
-
-		build_task_is_enabled "host-tools" && {
+		build_task_is_enabled "u-boot" && {
+			 build_get_boot_sources
 
 			call_extension_method "fetch_sources_tools" <<- 'FETCH_SOURCES_TOOLS'
 			*fetch host-side sources needed for tools and build*
@@ -230,6 +228,8 @@ build_main() {
 			After sources are fetched, build host-side tools needed for the build.
 			BUILD_HOST_TOOLS
 		}
+
+		build_task_is_enabled "kernel" && build_get_kernel_sources
 
 		for option in $(tr ',' ' ' <<< "$CLEAN_LEVEL"); do
 			[[ $option != sources ]] && cleaning "$option"
