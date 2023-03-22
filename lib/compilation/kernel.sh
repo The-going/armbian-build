@@ -199,7 +199,7 @@ compile_kernel() {
 	rm -f linux-firmware-image-*.deb
 
 	mkdir -p "${DEB_STORAGE}/${RELEASE}/linux-${BRANCH}"
-	rsync --remove-source-files -rq ./linux-* "${DEB_STORAGE}/${RELEASE}/linux-${BRANCH}/" || exit_with_error "Failed moving kernel DEBs"
+	rsync --remove-source-files -rq ./{*.deb,*.changes,*.buildinfo} "${DEB_STORAGE}/${RELEASE}/linux-${BRANCH}/" || exit_with_error "Failed moving kernel DEBs"
 
 	# store git hash to the file and create a change log
 	HASHTARGET="${SRC}/cache/hash"$([[ ${BETA} == yes ]] && echo "-beta")"/linux-image-${BRANCH}-${LINUXFAMILY}"
