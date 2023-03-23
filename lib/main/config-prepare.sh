@@ -102,6 +102,9 @@ function prepare_and_config_main_build_single() {
 
 	backward_compatibility_build_only
 
+	# Validate BUILD_ONLY for valid build task names
+	build_validate_buildOnly
+
 	interactive_config_ask_kernel
 
 	interactive_config_ask_board_list

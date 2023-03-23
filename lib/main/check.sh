@@ -72,10 +72,9 @@ build_validate_buildOnly() {
 
 	# relace all :comma: by :space:
 	_all_valid_buildOnly=${_all_valid_buildOnly//,/ }
-	_buildOnly=${_buildOnly//,/ }
 
 	local _invalidTaskNames=""
-	for _taskName in ${_buildOnly}; do
+	for _taskName in ${_buildOnly//,/ }; do
 		if ! string_is_contain "${_all_valid_buildOnly}" "$_taskName"
 		then
 			_invalidTaskNames+="${_taskName} "

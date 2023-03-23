@@ -50,9 +50,6 @@ backward_compatibility_build_only() {
 			display_alert "BUILD_ONLY enforced to:" "${BUILD_ONLY}" "info"
 		fi
 	}
-
-	# Validate BUILD_ONLY for valid build task names
-	build_validate_buildOnly
 }
 
 
@@ -267,9 +264,7 @@ build_main() {
 	build_task_is_enabled "bootstrap" && build_bootstrap
 
 	display_alert "Build done" "@host" "info"
-	display_alert "Target directory" "${DEB_STORAGE}/" "info"
-	build_task_is_enabled "u-boot" && display_alert "U-Boot file name" "${CHOSEN_UBOOT}_${REVISION}_${ARCH}.deb" "info"
-	build_task_is_enabled "kernel" && display_alert "Kernel file name" "${CHOSEN_KERNEL}_${REVISION}_${ARCH}.deb" "info"
+	display_alert "Target directory" "${DEB_STORAGE}/${RELEASE}" "info"
 
 	call_extension_method "run_after_build" << 'RUN_AFTER_BUILD'
 *hook for function to run after build, i.e. to change owner of `$SRC`*
