@@ -127,9 +127,9 @@ function prepare_and_config_main_build_single() {
 
 	interactive_config_ask_branch
 
-	build_task_is_enabled "bootstrap" && {
+	interactive_config_ask_release
 
-		interactive_config_ask_release
+	build_task_is_enabled "bootstrap" && {
 
 		interactive_config_ask_desktop_build
 
