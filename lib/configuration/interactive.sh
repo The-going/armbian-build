@@ -31,6 +31,25 @@ function interactive_config_ask_build_only() {
 	fi
 }
 
+function interactive_config_ask_task() {
+	if [ -z $BUILD_ONLY ]; then
+	#options+=("$(list_of_main_packages)" "Kernel and U-boot packages only")
+	options+=("u-boot" "U-boot package only" off)
+	options+=("kernel" "Kernel komplect packages" off)
+	options+=("default" "Full OS image for flashing" on)
+	options+=("bootstrap" "OS image for flashing only" off)
+	BUILD_ONLY=$(
+		dialog --stdout \
+			--title "Choose an option" \
+			--backtitle "$backtitle" \
+			--no-cancel \
+			--radiolist "Select what to build" $TTY_Y $TTY_X $((TTY_Y - 8)) "${options[@]}"
+		)
+		unset options
+		[[ -z $BUILD_ONLY ]] && exit_with_error "No option selected"
+	fi
+}
+
 function interactive_config_ask_kernel_configure() {
 	if [[ -z $KERNEL_CONFIGURE ]]; then
 

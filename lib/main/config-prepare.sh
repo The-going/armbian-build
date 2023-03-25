@@ -99,6 +99,7 @@ function prepare_and_config_main_build_single() {
 
 	# if BUILD_ONLY, KERNEL_CONFIGURE, BOARD, BRANCH or RELEASE are not set,
 	# display selection menu
+	interactive_config_ask_task
 
 	build_validate_buildOnly
 
