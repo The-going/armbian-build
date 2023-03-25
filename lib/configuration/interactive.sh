@@ -97,9 +97,19 @@ function interactive_config_ask_board_list() {
 			else
 				echo > "${temp_rc}"
 			fi
-			BOARD=$(DIALOGRC=$temp_rc dialog --stdout --title "Choose a board" --backtitle "$backtitle" --scrollbar \
-				--colors --extra-label "Show $WIP_BUTTON" --extra-button \
-				--menu "Select the target board. Displaying:\n$STATE_DESCRIPTION" $TTY_Y $TTY_X $((TTY_Y - 8)) "${options[@]}")
+			BOARD=$(
+				DIALOGRC=$temp_rc dialog \
+					--stdout \
+					--title "Choose a board" \
+					--backtitle "$backtitle" \
+					--scrollbar \
+					--colors \
+					--extra-label "Show $WIP_BUTTON" \
+					--extra-button \
+					--no-cancel \
+					--menu "Select the target board. Displaying:\n$STATE_DESCRIPTION" \
+					$TTY_Y $TTY_X $((TTY_Y - 8)) "${options[@]}"
+			)
 			STATUS=$?
 			if [[ $STATUS == 3 ]]; then
 				if [[ $WIP_STATE == supported ]]; then
@@ -141,12 +151,17 @@ function interactive_config_ask_branch() {
 		if [[ "${#options[@]}" == 2 ]]; then
 			BRANCH="${options[0]}"
 		else
-			BRANCH=$(dialog --stdout --title "Choose a kernel" --backtitle "$backtitle" --colors \
+			BRANCH=$(
+				dialog --stdout \
+				--title "Choose a kernel" \
+				--backtitle "$backtitle" \
+				--colors \
+				--no-cancel \
 				--menu "Select the target kernel branch\nExact kernel versions depend on selected board" \
-				$TTY_Y $TTY_X $((TTY_Y - 8)) "${options[@]}")
+				$TTY_Y $TTY_X $((TTY_Y - 8)) "${options[@]}"
+			)
 		fi
 		unset options
-		[[ -z $BRANCH ]] && exit_with_error "No kernel branch selected"
 		[[ $BRANCH == dev && $SHOW_WARNING == yes ]] && show_developer_warning
 
 	else
