@@ -13,22 +13,8 @@ function interactive_config_prepare_terminal() {
 }
 
 function interactive_config_ask_kernel() {
-	interactive_config_ask_build_only
+
 	interactive_config_ask_kernel_configure
-}
-
-function interactive_config_ask_build_only() {
-	if [[ -z $BUILD_ONLY ]]; then
-
-		options+=("$(build_only_value_for_kernel_only_build)" "Kernel and U-boot packages only")
-		options+=("u-boot" "U-boot package only")
-		options+=("default" "Full OS image for flashing")
-		BUILD_ONLY=$(dialog --stdout --title "Choose an option" --backtitle "$backtitle" --no-tags \
-			--menu "Select what to build" $TTY_Y $TTY_X $((TTY_Y - 8)) "${options[@]}")
-		unset options
-		[[ -z $BUILD_ONLY ]] && exit_with_error "No option selected"
-
-	fi
 }
 
 function interactive_config_ask_task() {
@@ -46,21 +32,23 @@ function interactive_config_ask_task() {
 			--radiolist "Select what to build" $TTY_Y $TTY_X $((TTY_Y - 8)) "${options[@]}"
 		)
 		unset options
-		[[ -z $BUILD_ONLY ]] && exit_with_error "No option selected"
 	fi
 }
 
 function interactive_config_ask_kernel_configure() {
-	if [[ -z $KERNEL_CONFIGURE ]]; then
+	if build_task_is_enabled "kernel" && [[ -z $KERNEL_CONFIGURE ]]; then
 
 		options+=("no" "Do not change the kernel configuration")
 		options+=("yes" "Show a kernel configuration menu before compilation")
-		options+=("prebuilt" "Use precompiled packages (maintained hardware only)")
-		KERNEL_CONFIGURE=$(dialog --stdout --title "Choose an option" --backtitle "$backtitle" --no-tags \
-			--menu "Select the kernel configuration" $TTY_Y $TTY_X $((TTY_Y - 8)) "${options[@]}")
+		KERNEL_CONFIGURE=$(
+			dialog --stdout \
+				--title "Choose an option" \
+				--backtitle "$backtitle" \
+				--no-tags \
+				--no-cancel \
+				--menu "Select the kernel configuration" $TTY_Y $TTY_X $((TTY_Y - 8)) "${options[@]}"
+			)
 		unset options
-		[[ -z $KERNEL_CONFIGURE ]] && exit_with_error "No option selected"
-
 	fi
 }
 
