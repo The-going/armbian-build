@@ -166,10 +166,13 @@ function interactive_config_ask_release() {
 
 		distros_options
 
-		RELEASE=$(dialog --stdout --title "Choose a release package base" --backtitle "$backtitle" \
-			--menu "Select the target OS release package base" $TTY_Y $TTY_X $((TTY_Y - 8)) "${options[@]}")
-		[[ -z $RELEASE ]] && exit_with_error "No release selected"
-
+		RELEASE=$(
+			dialog --stdout \
+				--title "Choose a release package base" \
+				--backtitle "$backtitle" \
+				--no-cancel \
+				--menu "Select the target OS release package base" $TTY_Y $TTY_X $((TTY_Y - 8)) "${options[@]}"
+		)
 		unset options
 	fi
 }
