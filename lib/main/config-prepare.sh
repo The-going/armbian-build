@@ -100,9 +100,6 @@ function prepare_and_config_main_build_single() {
 	# if BUILD_ONLY, KERNEL_CONFIGURE, BOARD, BRANCH or RELEASE are not set,
 	# display selection menu
 
-	backward_compatibility_build_only
-
-	# Validate BUILD_ONLY for valid build task names
 	build_validate_buildOnly
 
 	interactive_config_ask_kernel
