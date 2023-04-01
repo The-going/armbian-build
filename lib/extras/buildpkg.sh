@@ -168,208 +168,212 @@ create_clean_environment_archive() {
 	rm -rf $tmp_dir
 }
 
+build_packages_per_release_arch() {
+	local target_release="bullseye bookworm focal jammy lunar sid"
+	local target_arch="armhf arm64 amd64"
+	local release arch
+
+	for release in $target_release; do
+		for arch in $target_arch; do
+			chroot_build_packages release=$release arch=$arch
+		done
+	done
+}
+
 # chroot_build_packages
 #
 chroot_build_packages() {
 	local built_ok=()
 	local failed=()
+	while [[ "${1}" == *=* ]]; do
+		p=${1%%=*}
+		v=${1##*=}
+		shift
+		eval "local $p=\"$v\""
+	done
 	local selected_packages=$@
 	mkdir -p ${SRC}/cache/buildpkg
 
-	if [[ $IMAGE_TYPE == user-built ]]; then
-		# if user-built image compile only for selected arch/release
-		target_release="${RELEASE}"
-		target_arch="${ARCH}"
-	else
-		# only make packages for recent releases. There are no changes on older
-		target_release="bullseye bookworm focal jammy lunar sid"
-		target_arch="armhf arm64 amd64"
+	local release="${release:-$RELEASE}"
+	local arch="${arch:-$ARCH}"
+
+	display_alert "Starting package building process" "$release/$arch" "info"
+
+	local t_name=${release}-${arch}-v${CHROOT_CACHE_VERSION}
+	local distcc_bindaddr="127.0.0.2"
+
+	# Create a clean environment archive if it does not exist.
+	if [ ! -f "${SRC}/cache/buildpkg/${t_name}.tar.xz" ]; then
+		create_clean_environment_archive $release $arch ${CHROOT_CACHE_VERSION}
 	fi
 
-	for release in $target_release; do
-		for arch in $target_arch; do
-			display_alert "Starting package building process" "$release/$arch" "info"
+	# Unpack the clean environment archive, if it exists.
+	if [ -f "${SRC}/cache/buildpkg/${t_name}.tar.xz" ]; then
+		local tmp_dir=$(mktemp -d "${SRC}"/.tmp/build-XXXXX)
+		(
+			cd $tmp_dir
+			display_alert "Unpack the clean environment" "${t_name}.tar.xz" "info"
+			tar -xJf "${SRC}/cache/buildpkg/${t_name}.tar.xz" ||
+				exit_with_error "Is not extracted" "${SRC}/cache/buildpkg/${t_name}.tar.xz"
+		)
+		target_dir="$tmp_dir/${t_name}"
+	else
+		exit_with_error "Creating chroot failed" "${release}/${arch}"
+	fi
 
-			local t_name=${release}-${arch}-v${CHROOT_CACHE_VERSION}
-			local distcc_bindaddr="127.0.0.2"
+	[[ -f /var/run/distcc/"${release}-${arch}".pid ]] &&
+		kill "$(< "/var/run/distcc/${release}-${arch}.pid")" > /dev/null 2>&1
 
-			# Create a clean environment archive if it does not exist.
-			if [ ! -f "${SRC}/cache/buildpkg/${t_name}.tar.xz" ]; then
-				local tmp_dir=$(mktemp -d "${SRC}"/.tmp/debootstrap-XXXXX)
-				create_chroot "${tmp_dir}/${t_name}" "${release}" "${arch}"
-				display_alert "Create a clean Environment archive" "${t_name}.tar.xz" "info"
-				(
-					tar -cp --directory="${tmp_dir}/" ${t_name} |
-						pv -p -b -r -s "$(du -sb "${tmp_dir}/${t_name}" | cut -f1)" |
-						pixz -4 > "${SRC}/cache/buildpkg/${t_name}.tar.xz"
-				)
-				rm -rf $tmp_dir
-			fi
+	chroot_prepare_distccd "${release}" "${arch}"
 
-			# Unpack the clean environment archive, if it exists.
-			if [ -f "${SRC}/cache/buildpkg/${t_name}.tar.xz" ]; then
-				local tmp_dir=$(mktemp -d "${SRC}"/.tmp/build-XXXXX)
-				(
-					cd $tmp_dir
-					display_alert "Unpack the clean environment" "${t_name}.tar.xz" "info"
-					tar -xJf "${SRC}/cache/buildpkg/${t_name}.tar.xz" ||
-						exit_with_error "Is not extracted" "${SRC}/cache/buildpkg/${t_name}.tar.xz"
-				)
-				target_dir="$tmp_dir/${t_name}"
-			else
-				exit_with_error "Creating chroot failed" "${release}/${arch}"
-			fi
-
-			[[ -f /var/run/distcc/"${release}-${arch}".pid ]] &&
-				kill "$(< "/var/run/distcc/${release}-${arch}.pid")" > /dev/null 2>&1
-
-			chroot_prepare_distccd "${release}" "${arch}"
-
-			# DISTCC_TCP_DEFER_ACCEPT=0
-			DISTCC_CMDLIST=/tmp/distcc/${release}-${arch}/cmdlist \
+	# DISTCC_TCP_DEFER_ACCEPT=0
+	DISTCC_CMDLIST=/tmp/distcc/${release}-${arch}/cmdlist \
 				TMPDIR=/tmp/distcc distccd --daemon \
 				--pid-file "/var/run/distcc/${release}-${arch}.pid" \
 				--listen $distcc_bindaddr --allow 127.0.0.0/24 \
 				--log-file "/tmp/distcc/${release}-${arch}.log" --user distccd
 
-			[[ -d $target_dir ]] ||
-				exit_with_error "Clean Environment is not visible" "$target_dir"
+	[[ -d $target_dir ]] ||
+		exit_with_error "Clean Environment is not visible" "$target_dir"
 
-			local t=$target_dir/root/.update-timestamp
-			if [[ ! -f ${t} || $((($(date +%s) - $(< "${t}")) / 86400)) -gt 3 ]]; then
-				display_alert "Upgrading packages" "$release/$arch" "info"
-				systemd-nspawn -a -q -D "${target_dir}" /bin/bash -c "apt-get -q update; apt-get -q -y upgrade; apt-get clean"
-				date +%s > "${t}"
-				display_alert "Repack a clean Environment archive after upgrading" "${t_name}.tar.xz" "info"
-				rm "${SRC}/cache/buildpkg/${t_name}.tar.xz"
-				(
-					tar -cp --directory="${tmp_dir}/" ${t_name} |
-						pv -p -b -r -s "$(du -sb "${tmp_dir}/${t_name}" | cut -f1)" |
-						pixz -4 > "${SRC}/cache/buildpkg/${t_name}.tar.xz"
-				)
-			fi
+	local t=$target_dir/root/.update-timestamp
+	if [[ ! -f ${t} || $((($(date +%s) - $(< "${t}")) / 86400)) -gt 3 ]]; then
+		display_alert "Upgrading packages" "$release/$arch" "info"
+		systemd-nspawn -a -q -D "${target_dir}" /bin/bash -c "apt-get -q update; apt-get -q -y upgrade; apt-get clean"
+		date +%s > "${t}"
+		display_alert "Repack a clean Environment archive after upgrading" "${t_name}.tar.xz" "info"
+		rm "${SRC}/cache/buildpkg/${t_name}.tar.xz"
+		(
+			tar -cp --directory="${tmp_dir}/" ${t_name} |
+				pv -p -b -r -s "$(du -sb "${tmp_dir}/${t_name}" | cut -f1)" |
+				pixz -4 > "${SRC}/cache/buildpkg/${t_name}.tar.xz"
+		)
+	fi
 
-			if [[ -n "$selected_packages" ]]; then
-				display_alert "Selected packages for chroot: " "$selected_packages" "info"
-				local config_for_packages=""
+	if [[ -n "$selected_packages" ]]; then
+		display_alert "Selected packages for chroot: " "$selected_packages" "info"
+		local config_for_packages=""
 
-				for n in $selected_packages; do
-					if [ -d "${USERPATCHES_PATH}"/packages/extras-buildpkgs/${n} ]; then
-						config_for_packages="$config_for_packages $(
-							find "${USERPATCHES_PATH}"/packages/extras-buildpkgs/ \
-								-maxdepth 1 -name '*'${n}'*.conf')"
-						# Continue if a custom configuration is found.
-						display_alert "Custom config:" "$config_for_packages" "ext"
-					else
-						config_for_packages="$config_for_packages $(
-							find "${SRC}"/packages/extras-buildpkgs/ \
-								-maxdepth 1 -name '*'${n}'*.conf')"
-					fi
-				done
-
+		for n in $selected_packages; do
+			if [ -d "${USERPATCHES_PATH}"/packages/extras-buildpkgs/${n} ]; then
+				config_for_packages="$config_for_packages $(
+					find "${USERPATCHES_PATH}"/packages/extras-buildpkgs/ \
+						-maxdepth 1 -name '*'${n}'*.conf')"
+				# Continue if a custom configuration is found.
+				display_alert "Custom config:" "$config_for_packages" "ext"
 			else
-				local config_for_packages=$(
+				config_for_packages="$config_for_packages $(
 					find "${SRC}"/packages/extras-buildpkgs/ \
-						-maxdepth 1 -name '*.conf'
-				)
+						-maxdepth 1 -name '*'${n}'*.conf')"
 			fi
-
-			display_alert "Final config:" "$config_for_packages" "ext"
-			for plugin in $config_for_packages; do
-				unset package_name package_repo package_ref package_builddeps package_install_chroot package_install_target \
-					package_upstream_version needs_building plugin_target_dir package_component "package_builddeps_${release}"
-				source "${plugin}"
-
-				# check build condition
-				if [[ $(type -t package_checkbuild) == function ]] && ! package_checkbuild; then
-					display_alert "Skipping building $package_name for" "$release/$arch"
-					continue
-				fi
-
-				local plugin_target_dir="${DEB_STORAGE}/${release}/${package_name}/"
-				mkdir -p "${plugin_target_dir}"
-
-				# check if needs building
-				echo "$(find "${plugin_target_dir}" -name "${f}"_'*'_"$arch".deb)"
-				if [[ -f $(find "${plugin_target_dir}" -name "${f}"_'*'_"$arch".deb) ]]; then
-					display_alert "Packages are up to date" "$package_name $release/$arch" "info"
-					continue
-				fi
-
-				# Delete the environment if there was a build in it.
-				# And unpack the clean environment again.
-				if [[ -f "${target_dir}"/root/build.sh ]] && [[ -d $tmp_dir ]]; then
-					rm -rf $tmp_dir
-					local tmp_dir=$(mktemp -d "${SRC}"/.tmp/build-XXXXX)
-					(
-						cd $tmp_dir
-						display_alert "Unpack the clean environment" "${t_name}.tar.xz" "info"
-						tar -xJf "${SRC}/cache/buildpkg/${t_name}.tar.xz" ||
-							exit_with_error "Is not extracted" "${SRC}/cache/buildpkg/${t_name}.tar.xz"
-					)
-					target_dir="$tmp_dir/${t_name}"
-				fi
-
-				display_alert "Building packages" "$package_name $release/$arch" "ext"
-				ts=$(date +%s)
-				local dist_builddeps_name="package_builddeps_${release}"
-				[[ -v $dist_builddeps_name ]] && package_builddeps="${package_builddeps} ${!dist_builddeps_name}"
-
-				local pkg_linux_libcdev
-				if ! pkg_linux_libcdev="$(
-						find ${DEB_STORAGE}/${release}/linux-${BRANCH}/ \
-						-name 'linux-libc-dev*' 2>/dev/null)"; then
-					display_alert "Used system pkg:" " linux-libc-dev " "info"
-				elif [ $(echo -e "$pkg_linux_libcdev" | wc -l) -gt 1 ]; then
-					display_alert "An ambiguous situation." "Multiple linux-libc-dev files found" "wrn"
-					display_alert "Used system pkg:" " linux-libc-dev " "info"
-				else
-					display_alert "Used pkg:" " $pkg_linux_libcdev " "info"
-					cp $pkg_linux_libcdev "${target_dir}"/root/
-					file_linux_libcdev="/root/$(basename $pkg_linux_libcdev)"
-				fi
-
-				# create build script
-				LOG_OUTPUT_FILE=/root/build-"${package_name}".log
-				create_build_script
-				unset LOG_OUTPUT_FILE
-
-				fetch_from_repo "$package_repo" "extra/$package_name" "$package_ref"
-
-				eval systemd-nspawn -a -q \
-					--capability=CAP_MKNOD -D "${target_dir}" \
-					--tmpfs=/root/build \
-					--tmpfs=/tmp:mode=777 \
-					--bind-ro "$(dirname $plugin)"/:/root/overlay \
-					--bind-ro "${SRC}"/cache/sources/extra/:/root/sources /bin/bash -c "/root/build.sh" \
-					${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/buildpkg.log'} 2>&1 \
-					';EVALPIPE=(${PIPESTATUS[@]})'
-
-				if [[ ${EVALPIPE[0]} -ne 0 ]]; then
-					failed+=("$package_name:$release/$arch")
-					mv "${target_dir}"/root/build.sh "$DEST/${LOG_SUBPATH}/"
-				else
-					built_ok+=("$package_name:$release/$arch")
-					mv "${target_dir}"/root/"$package_name"*"$arch"* "${plugin_target_dir}" 2> /dev/null
-				fi
-
-				mv "${target_dir}"/root/*.log "$DEST/${LOG_SUBPATH}/"
-
-				te=$(date +%s)
-				display_alert "Build time $package_name " " $(($te - $ts)) sec." "info"
-			done
-			# Delete a temporary directory
-			if [ -d $tmp_dir ]; then rm -rf $tmp_dir; fi
-			# cleanup for distcc
-			kill $(< /var/run/distcc/${release}-${arch}.pid)
 		done
+
+	else
+		local config_for_packages=$(
+			find "${SRC}"/packages/extras-buildpkgs/ \
+				-maxdepth 1 -name '*.conf'
+		)
+	fi
+
+	display_alert "Final config:" "$config_for_packages" "ext"
+	for plugin in $config_for_packages; do
+		unset package_name package_repo package_ref package_builddeps \
+			  package_install_chroot package_install_target \
+			  package_upstream_version needs_building plugin_target_dir \
+			  package_component "package_builddeps_${release}"
+		source "${plugin}"
+
+		# check build condition
+		if [[ $(type -t package_checkbuild) == function ]] && ! package_checkbuild; then
+			display_alert "Skipping building $package_name for" "$release/$arch"
+			continue
+		fi
+
+		local plugin_target_dir="${DEB_STORAGE}/${release}/${package_name}/"
+		mkdir -p "${plugin_target_dir}"
+
+		# check if needs building
+		echo "$(find "${plugin_target_dir}" -name "${f}"_'*'_"$arch".deb)"
+		if [[ -f $(find "${plugin_target_dir}" -name "${f}"_'*'_"$arch".deb) ]]; then
+			display_alert "Packages are up to date" "$package_name $release/$arch" "info"
+			continue
+		fi
+
+		# Delete the environment if there was a build in it.
+		# And unpack the clean environment again.
+		if [[ -f "${target_dir}"/root/build.sh ]] && [[ -d $tmp_dir ]]; then
+			rm -rf $tmp_dir
+			local tmp_dir=$(mktemp -d "${SRC}"/.tmp/build-XXXXX)
+			(
+				cd $tmp_dir
+				display_alert "Unpack the clean environment" "${t_name}.tar.xz" "info"
+				tar -xJf "${SRC}/cache/buildpkg/${t_name}.tar.xz" ||
+					exit_with_error "Is not extracted" "${SRC}/cache/buildpkg/${t_name}.tar.xz"
+			)
+			local target_dir="$tmp_dir/${t_name}"
+		fi
+
+		display_alert "Building packages" "$package_name $release/$arch" "ext"
+		ts=$(date +%s)
+		local dist_builddeps_name="package_builddeps_${release}"
+		[[ -v $dist_builddeps_name ]] && package_builddeps="${package_builddeps} ${!dist_builddeps_name}"
+
+		local pkg_linux_libcdev
+		if ! pkg_linux_libcdev="$(
+				find ${DEB_STORAGE}/${release}/linux-${BRANCH}/ \
+						-name 'linux-libc-dev*' 2>/dev/null)"; then
+			display_alert "Used system pkg:" " linux-libc-dev " "info"
+		elif [ $(echo -e "$pkg_linux_libcdev" | wc -l) -gt 1 ]; then
+			display_alert "An ambiguous situation." "Multiple linux-libc-dev files found" "wrn"
+			display_alert "Used system pkg:" " linux-libc-dev " "info"
+		else
+			display_alert "Used pkg:" " $pkg_linux_libcdev " "info"
+			cp $pkg_linux_libcdev "${target_dir}"/root/
+			file_linux_libcdev="/root/$(basename $pkg_linux_libcdev)"
+		fi
+
+		# create build script
+		LOG_OUTPUT_FILE=/root/build-"${package_name}".log
+		create_build_script
+		unset LOG_OUTPUT_FILE
+
+		fetch_from_repo "$package_repo" "extra/$package_name" "$package_ref"
+
+		eval systemd-nspawn -a -q \
+				--capability=CAP_MKNOD -D "${target_dir}" \
+				--tmpfs=/root/build \
+				--tmpfs=/tmp:mode=777 \
+				--bind-ro "$(dirname $plugin)"/:/root/overlay \
+				--bind-ro "${SRC}"/cache/sources/extra/:/root/sources /bin/bash -c "/root/build.sh" \
+				${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/buildpkg.log'} 2>&1 \
+				';EVALPIPE=(${PIPESTATUS[@]})'
+
+		if [[ ${EVALPIPE[0]} -ne 0 ]]; then
+			failed+=("$package_name:$release/$arch")
+			mv "${target_dir}"/root/build.sh "$DEST/${LOG_SUBPATH}/"
+		else
+			built_ok+=("$package_name:$release/$arch")
+			mv "${target_dir}"/root/"$package_name"*"$arch"* "${plugin_target_dir}" 2> /dev/null
+		fi
+
+		mv "${target_dir}"/root/*.log "$DEST/${LOG_SUBPATH}/"
+
+		te=$(date +%s)
+		display_alert "Build time $package_name " " $(($te - $ts)) sec." "info"
 	done
+
+	# Delete a temporary directory
+	if [ -d $tmp_dir ]; then rm -rf $tmp_dir; fi
+	# cleanup for distcc
+	kill $(< /var/run/distcc/${release}-${arch}.pid)
+
 	if [[ ${#built_ok[@]} -gt 0 ]]; then
 		display_alert "Following packages were built without errors" "" "info"
 		for p in ${built_ok[@]}; do
 			display_alert "$p"
 		done
 	fi
+
 	if [[ ${#failed[@]} -gt 0 ]]; then
 		display_alert "Following packages failed to build" "" "wrn"
 		for p in ${failed[@]}; do
