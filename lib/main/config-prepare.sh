@@ -14,11 +14,11 @@ list_of_bsp_desktop_packages() {
 # Print a list of building all valid packages in the chroot environment
 list_of_building_all_valid_in_chroot() {
 	local listfiles=$(
-		[[ -d "${USERPATCHES_PATH}"/packages/extras-buildpkgs ]] && {
-			find "${USERPATCHES_PATH}"/packages/extras-buildpkgs/ \
+		[[ -d "${USERPATCHES_PATH}"/packages/deb-build ]] && {
+			find "${USERPATCHES_PATH}"/packages/deb-build/ \
 				-mindepth 1 -maxdepth 1 -type d
 		}
-		find "${SRC}"/packages/extras-buildpkgs/ \
+		find "${SRC}"/packages/deb-build/ \
 			-mindepth 1 -maxdepth 1 -type d
 	)
 	local list_name=""

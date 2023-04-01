@@ -255,22 +255,22 @@ chroot_build_packages() {
 		local config_for_packages=""
 
 		for n in $selected_packages; do
-			if [ -d "${USERPATCHES_PATH}"/packages/extras-buildpkgs/${n} ]; then
+			if [ -d "${USERPATCHES_PATH}"/packages/deb-build/${n} ]; then
 				config_for_packages="$config_for_packages $(
-					find "${USERPATCHES_PATH}"/packages/extras-buildpkgs/ \
+					find "${USERPATCHES_PATH}"/packages/deb-build/ \
 						-maxdepth 1 -name '*'${n}'*.conf')"
 				# Continue if a custom configuration is found.
 				display_alert "Custom config:" "$config_for_packages" "ext"
 			else
 				config_for_packages="$config_for_packages $(
-					find "${SRC}"/packages/extras-buildpkgs/ \
+					find "${SRC}"/packages/deb-build/ \
 						-maxdepth 1 -name '*'${n}'*.conf')"
 			fi
 		done
 
 	else
 		local config_for_packages=$(
-			find "${SRC}"/packages/extras-buildpkgs/ \
+			find "${SRC}"/packages/deb-build/ \
 				-maxdepth 1 -name '*.conf'
 		)
 	fi
