@@ -198,6 +198,11 @@ chroot_build_packages() {
 	local arch="${arch:-$ARCH}"
 
 	display_alert "Starting package building process" "$release/$arch" "info"
+	if [[ -n "$selected_packages" ]]; then
+		display_alert "Selected packages for chroot: " "$selected_packages" "info"
+	else
+		exit_with_error "No packages selected"
+	fi
 
 	local t_name=${release}-${arch}-v${CHROOT_CACHE_VERSION}
 	local distcc_bindaddr="127.0.0.2"
@@ -216,7 +221,7 @@ chroot_build_packages() {
 			tar -xJf "${SRC}/cache/buildpkg/${t_name}.tar.xz" ||
 				exit_with_error "Is not extracted" "${SRC}/cache/buildpkg/${t_name}.tar.xz"
 		)
-		target_dir="$tmp_dir/${t_name}"
+		build_dir="$tmp_dir/${t_name}"
 	else
 		exit_with_error "Creating chroot failed" "${release}/${arch}"
 	fi
@@ -233,13 +238,13 @@ chroot_build_packages() {
 				--listen $distcc_bindaddr --allow 127.0.0.0/24 \
 				--log-file "/tmp/distcc/${release}-${arch}.log" --user distccd
 
-	[[ -d $target_dir ]] ||
-		exit_with_error "Clean Environment is not visible" "$target_dir"
+	[[ -d $build_dir ]] ||
+		exit_with_error "Clean Environment is not visible" "$build_dir"
 
-	local t=$target_dir/root/.update-timestamp
+	local t=$build_dir/root/.update-timestamp
 	if [[ ! -f ${t} || $((($(date +%s) - $(< "${t}")) / 86400)) -gt 3 ]]; then
 		display_alert "Upgrading packages" "$release/$arch" "info"
-		systemd-nspawn -a -q -D "${target_dir}" /bin/bash -c "apt-get -q update; apt-get -q -y upgrade; apt-get clean"
+		systemd-nspawn -a -q -D "${build_dir}" /bin/bash -c "apt-get -q update; apt-get -q -y upgrade; apt-get clean"
 		date +%s > "${t}"
 		display_alert "Repack a clean Environment archive after upgrading" "${t_name}.tar.xz" "info"
 		rm "${SRC}/cache/buildpkg/${t_name}.tar.xz"
@@ -248,40 +253,43 @@ chroot_build_packages() {
 				pv -p -b -r -s "$(du -sb "${tmp_dir}/${t_name}" | cut -f1)" |
 				pixz -4 > "${SRC}/cache/buildpkg/${t_name}.tar.xz"
 		)
+		# DEBUG
+		cat $build_dir/etc/apt/sources.list >>"$DEST/${LOG_SUBPATH}/${t_name}.log"
 	fi
 
-	if [[ -n "$selected_packages" ]]; then
-		display_alert "Selected packages for chroot: " "$selected_packages" "info"
-		local config_for_packages=""
-
-		for n in $selected_packages; do
-			if [ -d "${USERPATCHES_PATH}"/packages/deb-build/${n} ]; then
-				config_for_packages="$config_for_packages $(
-					find "${USERPATCHES_PATH}"/packages/deb-build/ \
-						-maxdepth 1 -name '*'${n}'*.conf')"
-				# Continue if a custom configuration is found.
-				display_alert "Custom config:" "$config_for_packages" "ext"
-			else
-				config_for_packages="$config_for_packages $(
-					find "${SRC}"/packages/deb-build/ \
-						-maxdepth 1 -name '*'${n}'*.conf')"
-			fi
-		done
-
-	else
-		local config_for_packages=$(
-			find "${SRC}"/packages/deb-build/ \
-				-maxdepth 1 -name '*.conf'
-		)
-	fi
+	local config_for_packages=""
+	local src_dir
 
 	display_alert "Final config:" "$config_for_packages" "ext"
-	for plugin in $config_for_packages; do
-		unset package_name package_repo package_ref package_builddeps \
+	for package_name in $selected_packages; do
+		# Processing variables for three variants of the build scenario.
+		if [ -f "${USERPATCHES_PATH}"/packages/deb-build/${package_name}.conf ]; then
+			config_for_packages="${USERPATCHES_PATH}"/packages/deb-build/${package_name}.conf
+			src_dir="${USERPATCHES_PATH}"/packages/deb-build/${package_name}
+		elif [ -f "${SRC}"/packages/deb-build/${package_name}.conf ]; then
+			config_for_packages="${SRC}"/packages/deb-build/${package_name}.conf
+			src_dir="${SRC}"/packages/deb-build/${package_name}
+		elif [ -f "${USERPATCHES_PATH}"/packages/deb-build/${package_name}/debian/watch ]; then
+			src_dir="${USERPATCHES_PATH}"/packages/deb-build/${package_name}
+			config_for_packages="watch"
+		elif [ -f "${SRC}"/packages/deb-build/${package_name}/debian/watch ]; then
+			src_dir="${SRC}"/packages/deb-build/${package_name}
+			config_for_packages="watch"
+		else
+			display_alert "Нет конфигурации для пакета" "${package_name}" "wrn"
+			config_for_packages="src"
+			src_dir="${USERPATCHES_PATH}"/packages/deb-build/${package_name}
+			mkdir -p $src_dir
+		fi
+
+		unset package_repo package_ref package_builddeps \
 			  package_install_chroot package_install_target \
-			  package_upstream_version needs_building plugin_target_dir \
+			  package_upstream_version needs_building pkg_target_dir \
 			  package_component "package_builddeps_${release}"
-		source "${plugin}"
+
+		if [ -f $config_for_packages ]; then
+			source "${config_for_packages}"
+		fi
 
 		# check build condition
 		if [[ $(type -t package_checkbuild) == function ]] && ! package_checkbuild; then
@@ -289,19 +297,21 @@ chroot_build_packages() {
 			continue
 		fi
 
-		local plugin_target_dir="${DEB_STORAGE}/${release}/${package_name}/"
-		mkdir -p "${plugin_target_dir}"
+		local pkg_target_dir="${DEB_STORAGE}/${release}/${package_name}"
+		mkdir -p "${pkg_target_dir}"
+		local src_cache_dir="${SRC}"/cache/sources/$package_name
+		mkdir -p "${src_cache_dir}"
 
 		# check if needs building
-		echo "$(find "${plugin_target_dir}" -name "${f}"_'*'_"$arch".deb)"
-		if [[ -f $(find "${plugin_target_dir}" -name "${f}"_'*'_"$arch".deb) ]]; then
+		echo "$(find "${pkg_target_dir}/" -name "${package_name}"_'*'_"$arch".deb)" >&2
+		if [[ -f $(find "${pkg_target_dir}/" -name "${package_name}"_'*'_"$arch".deb) ]]; then
 			display_alert "Packages are up to date" "$package_name $release/$arch" "info"
 			continue
 		fi
 
 		# Delete the environment if there was a build in it.
 		# And unpack the clean environment again.
-		if [[ -f "${target_dir}"/root/build.sh ]] && [[ -d $tmp_dir ]]; then
+		if [[ -f "${build_dir}"/root/build.sh ]] && [[ -d $tmp_dir ]]; then
 			rm -rf $tmp_dir
 			local tmp_dir=$(mktemp -d "${SRC}"/.tmp/build-XXXXX)
 			(
@@ -310,7 +320,7 @@ chroot_build_packages() {
 				tar -xJf "${SRC}/cache/buildpkg/${t_name}.tar.xz" ||
 					exit_with_error "Is not extracted" "${SRC}/cache/buildpkg/${t_name}.tar.xz"
 			)
-			local target_dir="$tmp_dir/${t_name}"
+			local build_dir="$tmp_dir/${t_name}"
 		fi
 
 		display_alert "Building packages" "$package_name $release/$arch" "ext"
@@ -328,8 +338,14 @@ chroot_build_packages() {
 			display_alert "Used system pkg:" " linux-libc-dev " "info"
 		else
 			display_alert "Used pkg:" " $pkg_linux_libcdev " "info"
-			cp $pkg_linux_libcdev "${target_dir}"/root/
+			cp $pkg_linux_libcdev "${build_dir}"/root/
 			file_linux_libcdev="/root/$(basename $pkg_linux_libcdev)"
+		fi
+
+		if [[ "${package_repo%:*}" == http* ]] && [ -n "$package_ref" ]; then
+			fetch_from_repo "$package_repo" "$package_name" "$package_ref"
+		elif [ "$config_for_packages" == "watch" ]; then
+			check_debian_build_version "${src_dir}" "${src_cache_dir}"
 		fi
 
 		# create build script
@@ -337,26 +353,25 @@ chroot_build_packages() {
 		create_build_script
 		unset LOG_OUTPUT_FILE
 
-		fetch_from_repo "$package_repo" "extra/$package_name" "$package_ref"
-
 		eval systemd-nspawn -a -q \
-				--capability=CAP_MKNOD -D "${target_dir}" \
+				--capability=CAP_MKNOD -D "${build_dir}" \
 				--tmpfs=/root/build \
 				--tmpfs=/tmp:mode=777 \
-				--bind-ro "$(dirname $plugin)"/:/root/overlay \
-				--bind-ro "${SRC}"/cache/sources/extra/:/root/sources /bin/bash -c "/root/build.sh" \
+				--bind-ro "$src_dir"/:/root/overlay \
+				--bind-ro "${SRC}"/cache/sources/:/root/sources \
+				/bin/bash -c "/root/build.sh" \
 				${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/buildpkg.log'} 2>&1 \
 				';EVALPIPE=(${PIPESTATUS[@]})'
 
 		if [[ ${EVALPIPE[0]} -ne 0 ]]; then
 			failed+=("$package_name:$release/$arch")
-			mv "${target_dir}"/root/build.sh "$DEST/${LOG_SUBPATH}/"
+			mv "${build_dir}"/root/build.sh "$DEST/${LOG_SUBPATH}/"
 		else
 			built_ok+=("$package_name:$release/$arch")
-			mv "${target_dir}"/root/"$package_name"*"$arch"* "${plugin_target_dir}" 2> /dev/null
+			mv "${build_dir}"/root/"$package_name"*"$arch"* "${pkg_target_dir}" 2> /dev/null
 		fi
 
-		mv "${target_dir}"/root/*.log "$DEST/${LOG_SUBPATH}/"
+		mv "${build_dir}"/root/*.log "$DEST/${LOG_SUBPATH}/"
 
 		te=$(date +%s)
 		display_alert "Build time $package_name " " $(($te - $ts)) sec." "info"
@@ -415,7 +430,7 @@ check_debian_build_version() {
 
 # create build script
 create_build_script() {
-	cat <<-EOF > "${target_dir}"/root/build.sh
+	cat <<-EOF > "${build_dir}"/root/build.sh
 	#!/bin/bash
 	export PATH="/usr/lib/ccache:\$PATH"
 	export HOME="/root"
@@ -432,6 +447,7 @@ create_build_script() {
 	export DEBFULLNAME="$MAINTAINER"
 	export DEBEMAIL="$MAINTAINERMAIL"
 	$(declare -f display_alert)
+	$(declare -f check_debian_build_version)
 
 	LOG_OUTPUT_FILE=$LOG_OUTPUT_FILE
 	$(declare -f install_pkg_deb)
@@ -487,5 +503,5 @@ create_build_script() {
 	fi
 EOF
 
-	chmod +x "${target_dir}"/root/build.sh
+	chmod +x "${build_dir}"/root/build.sh
 }
