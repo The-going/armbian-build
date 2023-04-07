@@ -67,7 +67,7 @@ fel_load() {
 	[[ $(type -t fel_pre_load) == function ]] && fel_pre_load
 
 	display_alert "Loading files via" "FEL USB" "info"
-	sunxi-fel "${FEL_EXTRA_ARGS}" -p uboot "${FEL_ROOTFS}/usr/lib/${CHOSEN_UBOOT}_${REVISION}_armhf/u-boot-sunxi-with-spl.bin" \
+	sunxi-fel "${FEL_EXTRA_ARGS}" -p uboot "${FEL_ROOTFS}/usr/lib/${CHOSEN_UBOOT}_${UBOOT_VERSION}_${ARCH}/u-boot-sunxi-with-spl.bin" \
 		write 0x42000000 "${FEL_ROOTFS}"/boot/zImage \
 		write 0x43000000 "${FEL_ROOTFS}/${dtb_file}" \
 		write 0x43300000 "${FEL_ROOTFS}"/boot/uInitrd \

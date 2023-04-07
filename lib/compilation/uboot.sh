@@ -46,7 +46,6 @@ compile_uboot() {
 	[[ -n $toolchain2 ]] && display_alert "Additional compiler version" "${toolchain2_type}gcc $(eval env PATH="${toolchain}:${toolchain2}:${PATH}" "${toolchain2_type}gcc" -dumpversion)" "info"
 
 	# create directory structure for the .deb package
-	# CHOSEN_UBOOT=linux-u-boot-${BRANCH}-${BOARD}
 	uboottempdir=$(mktemp -d)
 	chmod 700 ${uboottempdir}
 	trap "ret=\$?; rm -rf \"${uboottempdir}\" ; exit \$ret" 0 1 2 3 15
@@ -183,7 +182,6 @@ compile_uboot() {
 	EOF
 
 	# set up control file
-	# CHOSEN_UBOOT=linux-u-boot-${BOARD}-${BRANCH}
 	cat <<- EOF > "$uboottempdir/${uboot_name}/DEBIAN/control"
 		Package: $CHOSEN_UBOOT
 		Version: ${version}

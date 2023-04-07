@@ -40,7 +40,7 @@ build_uboot() {
 	# Don't build at all if the BOOTCONFIG is 'none'.
 	[[ "${BOOTCONFIG}" != "none" ]] && {
 		# Compile u-boot if packed .deb does not exist or use the one from repository
-		if [[ ! -f "${DEB_STORAGE}"/${CHOSEN_UBOOT}_${REVISION}_${ARCH}.deb ]]; then
+		if [[ ! -f "${DEB_STORAGE}"/${RELEASE}/linux-u-boot/${CHOSEN_UBOOT}_*_${ARCH}.deb ]]; then
 			if [[ -n "${ATFSOURCE}" ]]; then
 				compile_atf
 			fi
