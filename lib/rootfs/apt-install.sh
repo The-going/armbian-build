@@ -17,13 +17,14 @@ install_deb_chroot() {
 	[[ $NO_APT_CACHER != yes ]] && \
 	local apt_extra="-o Acquire::http::Proxy=\"http://${APT_PROXY_ADDR:-localhost:3142}\" -o Acquire::http::Proxy::localhost=\"DIRECT\""
 
-	# when building in bulk from remote, lets make sure we have up2date index
-	chroot "${SDCARD}" /bin/bash -c \
-		"DEBIAN_FRONTEND=noninteractive apt-get -yqq $apt_extra \
-		--no-install-recommends install $name" >> \
+	eval 'chroot "${SDCARD}" /bin/bash -c \
+		"DEBIAN_FRONTEND=noninteractive apt-get -yq $apt_extra \
+		--no-install-recommends install $name" ;EVALPIPE=(${PIPESTATUS[@]})' >> \
 		"${DEST}"/${LOG_SUBPATH}/install.log 2>&1
 
-	[[ $? -ne 0 ]] && exit_with_error "Installation of $name failed" "${BOARD} ${RELEASE} ${BUILD_DESKTOP} ${LINUXFAMILY}"
+	[[ ${EVALPIPE[0]} -ne 0 ]] &&
+	exit_with_error "Installation of $name failed" "${BOARD} ${RELEASE} ${LINUXFAMILY}
+	${CHOSEN_ROOTFS} ${CHOSEN_DESKTOP}"
 
 	RET_VERSION=$version
 }
