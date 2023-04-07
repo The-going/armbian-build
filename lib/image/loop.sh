@@ -19,24 +19,25 @@ check_loop_device() {
 #
 write_uboot() {
 
-	local loop=$1 revision
+	local loop=$1
 	display_alert "Writing U-boot bootloader" "$loop" "info"
-	TEMP_DIR=$(mktemp -d || exit 1)
+	TEMP_DIR=$(mktemp -d) || TEMP_DIR=$(mktemp -d "${SRC}"/.tmp/tmp_XXXX)
 	chmod 700 ${TEMP_DIR}
-	revision=${REVISION}
-	if [[ -n $UBOOT_VERSION ]]; then
-		revision=${UBOOT_VERSION}
-	fi
 
-	local uboot_pkg_file="$(find ${DEB_STORAGE}/${RELEASE}/linux-u-boot/ -name ${CHOSEN_UBOOT}_${revision}_${ARCH}.deb)"
+	local uboot_pkg_file="$(
+			find ${DEB_STORAGE}/${RELEASE}/linux-u-boot/ \
+				-name ${CHOSEN_UBOOT}_${UBOOT_VERSION}_${ARCH}.deb
+		)"
+	[[ -f "$uboot_pkg_file" ]] ||
+	exit_with_error "U-boot package not found" "${CHOSEN_UBOOT}_${UBOOT_VERSION}_${ARCH}.deb"
 
 	if dpkg -x $uboot_pkg_file ${TEMP_DIR}/ ; then
 		# source platform install to read $DIR
 		source ${TEMP_DIR}/usr/lib/u-boot/platform_install.sh
 		write_uboot_platform "${TEMP_DIR}${DIR}" "$loop"
-		[[ $? -ne 0 ]] && exit_with_error "U-boot bootloader failed to install" "@host"
+		[[ $? -ne 0 ]] && exit_with_error "write_uboot_platform ${TEMP_DIR}${DIR} $loop" "failed"
 	else
-		exit_with_error "U-boot package not found" "${CHOSEN_UBOOT}_${revision}_${ARCH}.deb"
+		exit_with_error "Extracting ${CHOSEN_UBOOT}_${UBOOT_VERSION}_${ARCH}.deb to ${TEMP_DIR}/" "failed"
 	fi
 	rm -rf ${TEMP_DIR}
 
