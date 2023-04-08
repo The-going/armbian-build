@@ -86,6 +86,9 @@ create_chroot() {
 	eval 'LC_ALL=C LANG=C chroot "${target_dir}" \
 		/bin/bash -c "/usr/sbin/update-ccache-symlinks"'
 
+	eval 'LC_ALL=C LANG=C chroot "${target_dir}" \
+		/bin/bash -c "sed -i s/#deb-src/deb-src/g /etc/apt/sources.list"'
+
 	display_alert "Upgrading packages in" "${target_dir}" "info"
 	eval 'LC_ALL=C LANG=C chroot "${target_dir}" \
 		/bin/bash -c "apt-get -q update; apt-get -q -y upgrade; apt-get clean"'
