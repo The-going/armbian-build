@@ -99,11 +99,11 @@ else
 	revision=$(cat .version 2>/dev/null||echo 1)
 	packageversion=$version-$revision
 fi
+
 sourcename=$KDEB_SOURCENAME
 packagename=linux-image-"$NAME_EXTENSION"
 kernel_headers_packagename=linux-headers-"$NAME_EXTENSION"
 libc_headers_packagename=linux-libc-dev
-dtb_packagename=linux-dtb-"$NAME_EXTENSION"
 dbg_packagename=$packagename-dbg
 
 if [ "$ARCH" = "um" ] ; then
@@ -193,6 +193,10 @@ Provides: linux-image, linux-image-$NAME_EXTENSION
 Description: Linux kernel, armbian version $version $NAME_EXTENSION
  This package contains the Linux kernel, modules and corresponding other
  files, version: $version.
+EOF
+
+if [ "${SRCARCH}" != um ]; then
+cat <<EOF >> debian/control
 
 Package: $libc_headers_packagename
 Section: devel
@@ -204,12 +208,6 @@ Description: Armbian Linux support headers for userspace development
  This package provides userspaces headers from the Linux kernel.  These headers
  are used by the installed headers for GNU glibc and other system libraries.
 Multi-Arch: same
-
-Package: $dtb_packagename
-Architecture: $debarch
-Provides: linux-dtb, linux-dtb-$NAME_EXTENSION
-Description: Armbian Linux DTB, version $version $NAME_EXTENSION
- This package contains device blobs from the Linux kernel, version $version
 EOF
 
 if is_enabled CONFIG_MODULES; then
@@ -225,6 +223,7 @@ Description: Linux kernel headers for $version on $debarch $NAME_EXTENSION
  .
  This is useful for people who need to build external modules
 EOF
+fi
 fi
 
 if is_enabled CONFIG_DEBUG_INFO; then
@@ -254,7 +253,7 @@ binary-arch:
 
 clean:
 	rm -rf debian/*tmp debian/files
-	\$(MAKE) clean
+	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} clean
 
 binary: binary-arch
 EOF

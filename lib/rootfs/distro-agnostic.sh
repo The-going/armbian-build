@@ -286,14 +286,9 @@ PRE_INSTALL_KERNEL_DEBS
 	# install kernel
 	[[ -n $KERNELSOURCE ]] && {
 
-		install_deb_chroot "linux-image-${BRANCH}-${LINUXFAMILY}"
+		install_deb_chroot "$CHOSEN_KERNEL"
 		# version aka $(uname -r)
 		KERNEL_VERSION="${RET_VERSION%-*}"
-
-		# If does not have dtb package
-		if [[ "${ARCH}" != "amd64" && "${LINUXFAMILY}" != "media" && "${LINUXFAMILY}" != station* ]]; then
-			install_deb_chroot "linux-dtb-${BRANCH}-${LINUXFAMILY}"
-		fi
 
 		if [[ $INSTALL_HEADERS == yes ]]; then
 			chroot "${SDCARD}" /bin/bash -c "DEBIAN_FRONTEND=noninteractive \
@@ -358,7 +353,7 @@ POST_INSTALL_KERNEL_DEBS
 	if [[ $BSPFREEZE == yes ]]; then
 		display_alert "Freezing Armbian packages" "$BOARD" "info"
 		chroot "${SDCARD}" /bin/bash -c "apt-mark hold ${CHOSEN_KERNEL} ${CHOSEN_KERNEL/image/headers} \
-		$CHOSEN_UBOOT ${CHOSEN_KERNEL/image/dtb}" >> "${DEST}"/${LOG_SUBPATH}/install.log 2>&1
+		${CHOSEN_UBOOT}" >> "${DEST}"/${LOG_SUBPATH}/install.log 2>&1
 	fi
 
 	# remove deb files
