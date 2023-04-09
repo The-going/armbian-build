@@ -141,7 +141,7 @@ compile_kernel() {
 	# Vendor package revision
 	VENDOR_PKG_REVISION=${VENDOR_PKG_REVISION:-"${VENDOR}.${REVISION%-*}"}
 	# local version
-	LOCALVERSION=${LOCALVERSION:-"-$LINUXFAMILY"}
+	LOCALVERSION=""
 
 	# create linux-source package - with already patched sources
 	# We will build this package first and clear the memory.
