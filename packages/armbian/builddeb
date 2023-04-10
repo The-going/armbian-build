@@ -236,7 +236,8 @@ cp "$($MAKE -s -f $srctree/Makefile image_name)" "$tmpdir/$installed_image_path"
 # Only some architectures with OF support have this target
 if is_enabled CONFIG_OF_EARLY_FLATTREE && [ -d "${srctree}/arch/$SRCARCH/boot/dts" ]; then
 	$MAKE -f $srctree/Makefile INSTALL_DTBS_PATH="$tmpdir/boot/dtb-$version" dtbs_install
-	ln -s /usr/lib/linux-image-$version $tmpdir/boot/dtb-$version
+	mkdir -p $tmpdir/usr/lib
+	ln -s /boot/dtb-$version $tmpdir/usr/lib/linux-image-$version
 fi
 
 if is_enabled CONFIG_MODULES; then
