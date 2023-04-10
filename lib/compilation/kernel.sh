@@ -149,7 +149,7 @@ compile_kernel() {
 		create_linux-source_package
 	fi
 
-	echo -e "\n\t== kernel ==\n" >> "${DEST}"/${LOG_SUBPATH}/compilation.log
+	echo -e "\n\t== kernel ==\n" | tee -a "${DEST}"/${LOG_SUBPATH}/compilation.log
 	eval CCACHE_BASEDIR="$(pwd)" env PATH="${toolchain}:${PATH}" \
 		'make $CTHREADS ARCH=$ARCHITECTURE \
 		CROSS_COMPILE="$CCACHE $KERNEL_COMPILER" \
@@ -157,13 +157,14 @@ compile_kernel() {
 		LOCALVERSION=$LOCALVERSION \
 		VENDOR_PKG_REVISION=$VENDOR_PKG_REVISION \
 		NAME_EXTENSION=$NAME_EXTENSION \
-		$KERNEL_IMAGE_TYPE ${KERNEL_EXTRA_TARGETS:-modules dtbs} 2>>$DEST/${LOG_SUBPATH}/compilation.log' \
+		$KERNEL_IMAGE_TYPE ${KERNEL_EXTRA_TARGETS:-modules dtbs} \
+		2>>$DEST/${LOG_SUBPATH}/compilation.log; EVALPIPE=(${PIPESTATUS[@]})' \
 		${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/compilation.log'} \
 		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" \
 		--progressbox "Compiling kernel..." $TTY_Y $TTY_X'} \
 		${OUTPUT_VERYSILENT:+' >/dev/null 2>/dev/null'}
 
-	if [[ ${PIPESTATUS[0]} -ne 0 || ! -f arch/$ARCHITECTURE/boot/$KERNEL_IMAGE_TYPE ]]; then
+	if [[ ${EVALPIPE[0]} -ne 0 ]]; then
 		grep -i error $DEST/${LOG_SUBPATH}/compilation.log
 		exit_with_error "Kernel was not built" "@host"
 	fi
@@ -178,7 +179,7 @@ compile_kernel() {
 	display_alert "Creating packages"
 
 	# produce deb packages: image, headers, firmware, dtb
-	echo -e "\n\t== deb packages: image, headers, firmware, dtb ==\n" >> "${DEST}"/${LOG_SUBPATH}/compilation.log
+	echo -e "\n\t== deb packages: image, headers, firmware, dtb ==\n" | tee -a "${DEST}"/${LOG_SUBPATH}/compilation.log
 	eval CCACHE_BASEDIR="$(pwd)" env PATH="${toolchain}:${PATH}" \
 		'make $CTHREADS $kernel_packing \
 		LOCALVERSION=$LOCALVERSION \
