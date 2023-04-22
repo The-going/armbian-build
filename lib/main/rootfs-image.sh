@@ -69,11 +69,12 @@ debootstrap_ng() {
 	[[ $use_tmpfs == yes ]] && mount -t tmpfs -o size=${phymem}M tmpfs $SDCARD
 
 	# stage: prepare basic rootfs: unpack cache or create from scratch
-	create_rootfs_cache
+	prepare_basic_rootfs
 
 	call_extension_method "pre_install_distribution_specific" "config_pre_install_distribution_specific" << 'PRE_INSTALL_DISTRIBUTION_SPECIFIC'
 *give config a chance to act before install_distribution_specific*
-Called after `create_rootfs_cache` (_prepare basic rootfs: unpack cache or create from scratch_) but before `install_distribution_specific` (_install distribution and board specific applications_).
+Called after `create_rootfs_cache` (_prepare basic rootfs: unpack cache or create from scratch_)
+but before `install_distribution_specific` (_install distribution and board specific applications_).
 PRE_INSTALL_DISTRIBUTION_SPECIFIC
 
 	# Add a temporary local repository to the apt source list.
