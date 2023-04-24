@@ -33,7 +33,8 @@ create_tmp_local_repo() {
 	aptly -config="${conf}" repo create temp |& tee -a "${DEST}"/${LOG_SUBPATH}/aptly.log
 
 	files_to_add="$(
-		find "${DEB_STORAGE}/" -name '*'$ARCH'*'.deb -o -name '*'all'*'.deb
+		find "${DEB_STORAGE}/${RELEASE}/" -name '*'$ARCH'*'.deb
+		find "${DEB_STORAGE}/" -maxdepth 1 -name '*'all'*'.deb
 	)"
 	for f in $files_to_add; do
 		aptly -config="${conf}" repo add temp "$f" \
