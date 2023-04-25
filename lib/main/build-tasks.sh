@@ -1,17 +1,6 @@
 #!/usr/bin/env bash
 
 ###############################################################################
-#
-# build_only_value_for_kernel_only_build()
-#
-# This function provides the list of task names for a kernel package only build.
-#
-# In case of future updates, please review and maintain this list of task names.
-#
-build_only_value_for_kernel_only_build() {
-	echo "u-boot,kernel,armbian-config,armbian-zsh,plymouth-theme-armbian,armbian-firmware,armbian-bsp"
-	return 0
-}
 
 build_get_boot_sources() {
 	if [[ -n $BOOTSOURCE ]]; then
