@@ -36,7 +36,7 @@ debootstrap_ng() {
 
 	[[ $ROOTFS_TYPE != ext4 ]] && display_alert "Assuming $BOARD $BRANCH kernel supports $ROOTFS_TYPE" "" "wrn"
 
-	# trap to unmount stuff in case of error/manual interruption
+	# trap for unmounting content in case of error/interruption manually
 	trap unmount_on_exit INT TERM EXIT
 
 	# stage: clean and create directories
@@ -127,8 +127,5 @@ PRE_INSTALL_DISTRIBUTION_SPECIFIC
 			sleep 5
 		done
 	fi
-	rm -rf $SDCARD
-
-	# remove exit trap
-	trap - INT TERM EXIT
+	rm -rf $SDCARD $MOUNT
 }

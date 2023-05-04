@@ -64,6 +64,8 @@ pack_rootfs() {
 prepare_basic_rootfs() {
 	local packages_hash=$(get_package_list_hash)
 	local packages_hash=${packages_hash:0:8}
+	# trap for unmounting content in case of error/interruption manually
+	trap unmount_on_exit INT TERM EXIT
 
 	local cache_type="cli"
 	[[ ${BUILD_DESKTOP} == yes ]] && local cache_type="xfce-desktop"
@@ -130,6 +132,8 @@ create_rootfs_cache() {
 	local cache_fname=${SRC}/cache/rootfs/${cache_name}
 
 	display_alert "Creating new rootfs cache for" "$RELEASE" "info"
+	# trap for unmounting content in case of error/interruption manually
+	trap unmount_on_exit INT TERM EXIT
 
 	# stage: debootstrap base system
 	if [[ $NO_APT_CACHER != yes ]]; then
