@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
+
 # get_package_list_hash
 #
 # returns md5 hash for current package list and rootfs cache version
-
+#
 get_package_list_hash() {
 	local package_arr exclude_arr
 	local list_content
@@ -25,6 +26,7 @@ get_package_list_hash() {
 #       jq -r '.[].tag_name'
 #   )
 # return a number of Latest release.
+# And we need a list of download reachability.
 #
 get_rootfs_cache_list() {
 	local cache_type=$1
@@ -41,6 +43,16 @@ get_rootfs_cache_list() {
 	} | sort | uniq
 }
 
+# Check the reachability of the download. If returned empty we do nothing.
+check_reachability_rootfs_download() {
+	local cache_type=$1
+	local packages_hash=$2
+
+	curl --silent --fail -L "https://api.github.com/repos/armbian/cache/releases?per_page=1" | \
+		jq '.[] | .assets[] | .browser_download_url' | \
+		grep "${ARCH}-${RELEASE}-${cache_type}-${packages_hash}" | grep -v '.torrent'
+}
+
 # prepare_basic_rootfs
 #
 # prepare basic rootfs: unpack cache or create from scratch for $RELEASE
@@ -53,6 +65,34 @@ prepare_basic_rootfs() {
 	[[ ${BUILD_DESKTOP} == yes ]] && local cache_type="xfce-desktop"
 	[[ -n ${DESKTOP_ENVIRONMENT} ]] && local cache_type="${DESKTOP_ENVIRONMENT}"
 	[[ ${BUILD_MINIMAL} == yes ]] && local cache_type="minimal"
+
+	# Pattern:
+	# cache_name=${ARCH}-${RELEASE}-${cache_type}-${packages_hash}-${ROOTFSCACHE_VERSION}.tar.zst
+	# cache_fname=${SRC}/cache/rootfs/${cache_name}
+	display_alert "Checking cache" "$cache_name" "info"
+
+	# check the availability of the local rootfs file
+	local cache_fname=$(
+		find ${SRC}/cache/rootfs/ -name "${ARCH}-${RELEASE}-${cache_type}-${packages_hash}"-'*'.tar.zst
+	)
+	[[ ! -f $cache_fname ]] && {
+		# check the reachability of the rootfs download after we have received
+		# the local hash of the list and its type (packages_hash, cache_type)
+		local download_lisl_url=$(check_reachability_rootfs_download "$cache_type" "$packages_hash")
+
+		if [ "$download_lisl_url" != "" ]; then
+			display_alert "Downloading rootfs from servers"
+			for uri in $download_lisl_url; do
+				eval "local url=$uri"
+				echo "Download: $(basename $url)" >> "${DEST}/${LOG_SUBPATH}/output.log"
+				wget -q --show-progress -P "${SRC}/cache/rootfs"  -c $url
+				wait
+			done
+			cache_fname=$(check_availability_local_rootfs_file "$cache_type" "$packages_hash")
+			gpg --homedir "${SRC}"/cache/.gpg --no-permission-warning --trust-model always \
+				-q --verify ${cache_fname}.asc >> "${DEST}/${LOG_SUBPATH}/output.log" 2>&1
+		fi
+	}
 
 	# seek last cache, proceed to previous otherwise build it
 	local cache_list
