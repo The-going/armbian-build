@@ -25,6 +25,38 @@ check_reachability_rootfs_download() {
 		grep "${ARCH}-${RELEASE}-${cache_type}-${packages_hash}" | grep -v '.torrent'
 }
 
+# pack the rootfs
+pack_rootfs() {
+	local cache_fname=$1
+	local cache_name=$(basename $cache_fname)
+	local rootfs_dir="$2"
+
+	tar cp --xattrs \
+		   --directory=$rootfs_dir/ \
+		   --exclude='./dev/*' \
+		   --exclude='./proc/*' \
+		   --exclude='./run/*' \
+		   --exclude='./tmp/*' \
+		   --exclude='./sys/*' \
+		   --exclude='./home/*' \
+		   --exclude='./root/*' . | \
+		   pv -p -b -r -s $(du -sb $rootfs_dir/ | cut -f1) -N "$cache_name" | \
+		   zstdmt -19 -c > $cache_fname
+
+	# sign rootfs cache archive that it can be used for web cache once. Internal purposes
+	if [[ -n "${GPG_PASS}" && "${SUDO_USER}" ]]; then
+		[[ -n ${SUDO_USER} ]] && sudo chown -R ${SUDO_USER}:${SUDO_USER} "${DEST}"/images/
+		echo "${GPG_PASS}" | \
+		sudo -H -u ${SUDO_USER} \
+		bash -c "gpg --passphrase-fd 0 \
+				--armor \
+				--detach-sign \
+				--pinentry-mode loopback \
+				--batch --yes ${cache_fname}" || exit 1
+	fi
+
+}
+
 # prepare_basic_rootfs
 #
 # prepare basic rootfs: unpack cache or create from scratch for $RELEASE
@@ -309,21 +341,5 @@ create_rootfs_cache() {
 	# based on rootfs size calculation
 	umount_chroot "$SDCARD"
 
-	tar cp --xattrs \
-		   --directory=$SDCARD/ \
-		   --exclude='./dev/*' \
-		   --exclude='./proc/*' \
-		   --exclude='./run/*' \
-		   --exclude='./tmp/*' \
-		   --exclude='./sys/*' \
-		   --exclude='./home/*' \
-		   --exclude='./root/*' . |
-		   pv -p -b -r -s $(du -sb $SDCARD/ | cut -f1) -N "$cache_name" |
-		   zstdmt -19 -c > $cache_fname
-
-	# sign rootfs cache archive that it can be used for web cache once. Internal purposes
-	if [[ -n "${GPG_PASS}" && "${SUDO_USER}" ]]; then
-		[[ -n ${SUDO_USER} ]] && sudo chown -R ${SUDO_USER}:${SUDO_USER} "${DEST}"/images/
-		echo "${GPG_PASS}" | sudo -H -u ${SUDO_USER} bash -c "gpg --passphrase-fd 0 --armor --detach-sign --pinentry-mode loopback --batch --yes ${cache_fname}" || exit 1
-	fi
+	pack_rootfs "$cache_fname" "$SDCARD"
 }
