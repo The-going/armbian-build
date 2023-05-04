@@ -127,7 +127,7 @@ prepare_basic_rootfs() {
 }
 
 create_rootfs_cache() {
-	local ROOT_FS_LOCAL_VERSION=${ROOT_FS_LOCAL_VERSION:-007}
+	local ROOT_FS_LOCAL_VERSION=${ROOTFSCACHE_VERSION:-7007}
 	local cache_name=${ARCH}-${RELEASE}-${cache_type}-${packages_hash}-${ROOT_FS_LOCAL_VERSION}.tar.zst
 	local cache_fname=${SRC}/cache/rootfs/${cache_name}
 
@@ -136,13 +136,7 @@ create_rootfs_cache() {
 	trap unmount_on_exit INT TERM EXIT
 
 	# stage: debootstrap base system
-	if [[ $NO_APT_CACHER != yes ]]; then
-		# apt-cacher-ng apt-get proxy parameter
-		local apt_extra="-o Acquire::http::Proxy=\"http://${APT_PROXY_ADDR:-localhost:3142}\""
-		local apt_mirror="http://${APT_PROXY_ADDR:-localhost:3142}/$APT_MIRROR"
-	else
-		local apt_mirror="http://$APT_MIRROR"
-	fi
+	local apt_mirror="http://$APT_MIRROR"
 
 	# fancy progress bars
 	[[ -z $OUTPUT_DIALOG ]] &&
