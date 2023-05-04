@@ -57,6 +57,33 @@ pack_rootfs() {
 
 }
 
+# upgrade packages
+#
+upgrade_packages() {
+	local apt_extra_progress="--show-progress -o DPKG::Progress-Fancy=1"
+
+	# stage: update packages list
+	display_alert "Updating package list" "$RELEASE" "info"
+	eval 'LC_ALL=C LANG=C chroot $SDCARD /bin/bash -e -c "apt-get -q -y update"' \
+		${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/debootstrap.log'} \
+		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Updating package lists..." $TTY_Y $TTY_X'} \
+		${OUTPUT_VERYSILENT:+' >/dev/null 2>/dev/null'} ';EVALPIPE=(${PIPESTATUS[@]})'
+
+	[[ ${EVALPIPE[0]} -ne 0 ]] && display_alert "Updating package lists" "failed" "wrn"
+
+	# stage: upgrade base packages from xxx-updates and xxx-backports repository branches
+	display_alert "Upgrading base packages" "Armbian" "info"
+	eval 'LC_ALL=C LANG=C chroot $SDCARD /bin/bash -e -c "DEBIAN_FRONTEND=noninteractive apt-get -y -q \
+		$apt_extra_progress upgrade"' \
+		${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/debootstrap.log'} \
+		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Upgrading base packages..." $TTY_Y $TTY_X'} \
+		${OUTPUT_VERYSILENT:+' >/dev/null 2>/dev/null'} ';EVALPIPE=(${PIPESTATUS[@]})'
+
+	[[ ${EVALPIPE[0]} -ne 0 ]] && {
+		display_alert "Upgrading base packages" "failed" "wrn"
+		return 1
+	}
+}
 # prepare_basic_rootfs
 #
 # prepare basic rootfs: unpack cache or create from scratch for $RELEASE
@@ -110,6 +137,14 @@ prepare_basic_rootfs() {
 		rm $SDCARD/etc/resolv.conf
 		echo "nameserver $NAMESERVER" >> $SDCARD/etc/resolv.conf
 		create_sources_list "$RELEASE" "$SDCARD/"
+		[[ $date_diff -ge 7 ]] && {
+			upgrade_packages
+			if [[ ${PIPESTATUS[0]} -eq 0 ]]; then
+				umount_chroot "$SDCARD"
+				display_alert "Repack rootfs"
+				pack_rootfs "$cache_fname" "$SDCARD"
+			fi
+		}
 	else
 		create_rootfs_cache
 	fi
@@ -221,24 +256,8 @@ create_rootfs_cache() {
 	# TODO change name of the function from "desktop" and move to appropriate location
 	add_desktop_package_sources
 
-	# stage: update packages list
-	display_alert "Updating package list" "$RELEASE" "info"
-	eval 'LC_ALL=C LANG=C chroot $SDCARD /bin/bash -e -c "apt-get -q -y $apt_extra update"' \
-		${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/debootstrap.log'} \
-		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Updating package lists..." $TTY_Y $TTY_X'} \
-		${OUTPUT_VERYSILENT:+' >/dev/null 2>/dev/null'} ';EVALPIPE=(${PIPESTATUS[@]})'
-
-	[[ ${EVALPIPE[0]} -ne 0 ]] && display_alert "Updating package lists" "failed" "wrn"
-
-	# stage: upgrade base packages from xxx-updates and xxx-backports repository branches
-	display_alert "Upgrading base packages" "Armbian" "info"
-	eval 'LC_ALL=C LANG=C chroot $SDCARD /bin/bash -e -c "DEBIAN_FRONTEND=noninteractive apt-get -y -q \
-		$apt_extra $apt_extra_progress upgrade"' \
-		${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/debootstrap.log'} \
-		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Upgrading base packages..." $TTY_Y $TTY_X'} \
-		${OUTPUT_VERYSILENT:+' >/dev/null 2>/dev/null'} ';EVALPIPE=(${PIPESTATUS[@]})'
-
-	[[ ${EVALPIPE[0]} -ne 0 ]] && display_alert "Upgrading base packages" "failed" "wrn"
+	# upgrade base packages
+	upgrade_packages
 
 	# stage: install additional packages
 	display_alert "Installing the main packages for" "Armbian" "info"
