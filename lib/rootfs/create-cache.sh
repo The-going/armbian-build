@@ -15,34 +15,6 @@ get_package_list_hash() {
 	) | sort -u | md5sum | cut -d' ' -f 1
 }
 
-# get_rootfs_cache_list <cache_type> <packages_hash>
-#
-# return a list of versions of all avaiable cache from remote and local.
-#
-# Latest-release=$(
-#       curl --silent \
-#       --fail \
-#       -L "https://api.github.com/repos/armbian/cache/releases?per_page=1" | \
-#       jq -r '.[].tag_name'
-#   )
-# return a number of Latest release.
-# And we need a list of download reachability.
-#
-get_rootfs_cache_list() {
-	local cache_type=$1
-	local packages_hash=$2
-
-	{
-		curl --silent --fail -L "https://api.github.com/repos/armbian/cache/releases?per_page=3" | jq -r '.[].tag_name' \
-		|| curl --silent --fail -L https://cache.armbian.com/rootfs/list
-
-		find ${SRC}/cache/rootfs/ -mtime -7 -name "${ARCH}-${RELEASE}-${cache_type}-${packages_hash}-*.tar.zst" |
-			sed -e 's#^.*/##' |
-			sed -e 's#\..*$##' |
-			awk -F'-' '{print $5}'
-	} | sort | uniq
-}
-
 # Check the reachability of the download. If returned empty we do nothing.
 check_reachability_rootfs_download() {
 	local cache_type=$1
@@ -94,31 +66,9 @@ prepare_basic_rootfs() {
 		fi
 	}
 
-	# seek last cache, proceed to previous otherwise build it
-	local cache_list
-	readarray -t cache_list <<< "$(get_rootfs_cache_list "$cache_type" "$packages_hash" | sort -r)"
-	for ROOTFSCACHE_VERSION in "${cache_list[@]}"; do
+	if [[ -f $cache_fname ]]; then
 
-		local cache_name=${ARCH}-${RELEASE}-${cache_type}-${packages_hash}-${ROOTFSCACHE_VERSION}.tar.zst
-		local cache_fname=${SRC}/cache/rootfs/${cache_name}
-
-		[[ "$ROOT_FS_CREATE_ONLY" == yes ]] && break
-
-		display_alert "Checking cache" "$cache_name" "info"
-
-		# if aria2 file exists download didn't succeeded
-		if [[ ! -f $cache_fname || -f ${cache_fname}.aria2 ]]; then
-			display_alert "Downloading from servers"
-			download_and_verify "rootfs" "$cache_name" ||
-				continue
-		fi
-
-		[[ -f $cache_fname && ! -f ${cache_fname}.aria2 ]] && break
-	done
-
-	# if aria2 file exists download didn't succeeded
-	if [[ "$ROOT_FS_CREATE_ONLY" != "yes" && -f $cache_fname && ! -f $cache_fname.aria2 ]]; then
-
+		cache_name=$(basename $cache_fname)
 		local date_diff=$((($(date +%s) - $(stat -c %Y $cache_fname)) / 86400))
 		display_alert "Extracting $cache_name" "$date_diff days old" "info"
 		pv -p -b -r -c -N "[ .... ] $cache_name" "$cache_fname" | zstdmt -dc | tar xp --xattrs -C $SDCARD/
