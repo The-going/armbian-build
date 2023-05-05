@@ -41,7 +41,7 @@ pack_rootfs() {
 		   --exclude='./home/*' \
 		   --exclude='./root/*' . | \
 		   pv -p -b -r -s $(du -sb $rootfs_dir/ | cut -f1) -N "$cache_name" | \
-		   zstdmt -19 -c > $cache_fname
+		   zstdmt -"${K_ZST:-9}" -c > $cache_fname
 
 	# sign rootfs cache archive that it can be used for web cache once. Internal purposes
 	if [[ -n "${GPG_PASS}" && "${SUDO_USER}" ]]; then
@@ -69,21 +69,19 @@ upgrade_packages() {
 		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Updating package lists..." $TTY_Y $TTY_X'} \
 		${OUTPUT_VERYSILENT:+' >/dev/null 2>/dev/null'} ';EVALPIPE=(${PIPESTATUS[@]})'
 
-	[[ ${EVALPIPE[0]} -ne 0 ]] && display_alert "Updating package lists" "failed" "wrn"
+	[[ ${EVALPIPE[0]} -eq 0 ]] || display_alert "Updating package lists" "failed" "wrn"
 
 	# stage: upgrade base packages from xxx-updates and xxx-backports repository branches
-	display_alert "Upgrading base packages" "Armbian" "info"
+	display_alert "Upgrading base packages" "$RELEASE" "info"
 	eval 'LC_ALL=C LANG=C chroot $SDCARD /bin/bash -e -c "DEBIAN_FRONTEND=noninteractive apt-get -y -q \
 		$apt_extra_progress upgrade"' \
 		${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/debootstrap.log'} \
 		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Upgrading base packages..." $TTY_Y $TTY_X'} \
 		${OUTPUT_VERYSILENT:+' >/dev/null 2>/dev/null'} ';EVALPIPE=(${PIPESTATUS[@]})'
 
-	[[ ${EVALPIPE[0]} -ne 0 ]] && {
-		display_alert "Upgrading base packages" "failed" "wrn"
-		return 1
-	}
+	[[ ${EVALPIPE[0]} -eq 0 ]] || display_alert "Upgrading base packages" "failed" "wrn"
 }
+
 # prepare_basic_rootfs
 #
 # prepare basic rootfs: unpack cache or create from scratch for $RELEASE
@@ -92,23 +90,21 @@ prepare_basic_rootfs() {
 	local packages_hash=$(get_package_list_hash)
 	local packages_hash=${packages_hash:0:8}
 	# trap for unmounting content in case of error/interruption manually
-	trap unmount_on_exit INT TERM EXIT
+	trap - INT TERM EXIT
 
 	local cache_type="cli"
 	[[ ${BUILD_DESKTOP} == yes ]] && local cache_type="xfce-desktop"
 	[[ -n ${DESKTOP_ENVIRONMENT} ]] && local cache_type="${DESKTOP_ENVIRONMENT}"
 	[[ ${BUILD_MINIMAL} == yes ]] && local cache_type="minimal"
 
-	# Pattern:
-	# cache_name=${ARCH}-${RELEASE}-${cache_type}-${packages_hash}-${ROOTFSCACHE_VERSION}.tar.zst
-	# cache_fname=${SRC}/cache/rootfs/${cache_name}
-	display_alert "Checking cache" "$cache_name" "info"
+	display_alert "Checking cache" "${ARCH}-${RELEASE}-${cache_type}-${packages_hash}-'*'.tar.zst" "info"
 
 	# check the availability of the local rootfs file
 	local cache_fname=$(
 		find ${SRC}/cache/rootfs/ -name "${ARCH}-${RELEASE}-${cache_type}-${packages_hash}"-'*'.tar.zst
 	)
-	[[ ! -f $cache_fname ]] && {
+
+	[[ ! -f $cache_fname ]] && [[ "$DOWNLOAD_ROOTFS" == "yes" ]] && {
 		# check the reachability of the rootfs download after we have received
 		# the local hash of the list and its type (packages_hash, cache_type)
 		local download_lisl_url=$(check_reachability_rootfs_download "$cache_type" "$packages_hash")
@@ -119,11 +115,14 @@ prepare_basic_rootfs() {
 				eval "local url=$uri"
 				echo "Download: $(basename $url)" >> "${DEST}/${LOG_SUBPATH}/output.log"
 				wget -q --show-progress -P "${SRC}/cache/rootfs"  -c $url
-				wait
 			done
-			cache_fname=$(check_availability_local_rootfs_file "$cache_type" "$packages_hash")
+			cache_fname=$(
+				find ${SRC}/cache/rootfs/ -name "${ARCH}-${RELEASE}-${cache_type}-${packages_hash}"-'*'.tar.zst
+			)
+
 			gpg --homedir "${SRC}"/cache/.gpg --no-permission-warning --trust-model always \
 				-q --verify ${cache_fname}.asc >> "${DEST}/${LOG_SUBPATH}/output.log" 2>&1
+			[[ ${PIPESTATUS[0]} -eq 0 ]] || display_alert "Verification ${cache_fname}" "failed" "wrn"
 		fi
 	}
 
@@ -134,15 +133,22 @@ prepare_basic_rootfs() {
 		display_alert "Extracting $cache_name" "$date_diff days old" "info"
 		pv -p -b -r -c -N "[ .... ] $cache_name" "$cache_fname" | zstdmt -dc | tar xp --xattrs -C $SDCARD/
 		[[ $? -ne 0 ]] && rm $cache_fname && exit_with_error "Cache $cache_fname is corrupted and was deleted. Restart."
+
 		rm $SDCARD/etc/resolv.conf
 		echo "nameserver $NAMESERVER" >> $SDCARD/etc/resolv.conf
+
 		create_sources_list "$RELEASE" "$SDCARD/"
 		[[ $date_diff -ge 7 ]] && {
+			mount_chroot "$SDCARD"
 			upgrade_packages
 			if [[ ${PIPESTATUS[0]} -eq 0 ]]; then
+				# stage: remove downloaded packages
+				chroot $SDCARD /bin/bash -c "apt-get -y autoremove; apt-get clean"
 				umount_chroot "$SDCARD"
 				display_alert "Repack rootfs"
 				pack_rootfs "$cache_fname" "$SDCARD"
+			else
+				display_alert "upgrade_packages returned" "${PIPESTATUS[0]}" "wrn"
 			fi
 		}
 	else
@@ -168,7 +174,7 @@ create_rootfs_cache() {
 
 	display_alert "Creating new rootfs cache for" "$RELEASE" "info"
 	# trap for unmounting content in case of error/interruption manually
-	trap unmount_on_exit INT TERM EXIT
+	trap - INT TERM EXIT
 
 	# stage: debootstrap base system
 	local apt_mirror="http://$APT_MIRROR"
@@ -330,7 +336,7 @@ create_rootfs_cache() {
 	display_alert "Mount point" "$(echo -e "$freespace" | awk -v mp="${MOUNT}" '$6==mp {print $5}')" "info"
 
 	# create list of installed packages for debug purposes
-	chroot $SDCARD /bin/bash -c "dpkg -l | grep ^ii | awk '{ print \$2\",\"\$3 }'" > ${cache_fname}.list 2>&1
+	chroot $SDCARD /bin/bash -c "dpkg -l | awk '/^ii/ { print \$2\",\"\$3 }'" > ${cache_fname}.list 2>&1
 
 	# creating xapian index that synaptic runs faster
 	if [[ $BUILD_DESKTOP == yes ]]; then
