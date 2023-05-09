@@ -96,6 +96,8 @@ create_sources_list() {
 	local basedir=$2
 	[[ -z $basedir ]] && exit_with_error "No basedir passed to create_sources_list"
 
+	display_alert "Create sources list for" "$release" "info"
+
 	case $release in
 		buster)
 			cat <<- EOF > "${basedir}"/etc/apt/sources.list
@@ -152,6 +154,14 @@ create_sources_list() {
 			EOF
 			;;
 	esac
+}
+
+# Adding Vendor sources list to /etc/apt/sources.list.d/ and authentication key
+#
+add_armbian_sources_list() {
+	local release=$1
+	local basedir=$2
+	[[ -z $basedir ]] && exit_with_error "No basedir passed to create_sources_list"
 
 	display_alert "Adding Armbian repository and authentication key" "/etc/apt/sources.list.d/armbian.list" "info"
 
@@ -183,7 +193,7 @@ create_sources_list() {
 	fi
 
 	cat <<- EOF > "${basedir}"/etc/apt/sources.list.d/armbian.list
-		deb ${SIGNED_BY}${ARMBIAN_MIRROR} $RELEASE main ${RELEASE}-utils ${RELEASE}-desktop
+		deb ${SIGNED_BY}${ARMBIAN_MIRROR} $release main ${release}-utils ${release}-desktop
 	EOF
 
 	# Packages available locally from the list have the highest priority of 999
@@ -198,11 +208,5 @@ create_sources_list() {
 		Pin: release o=armbian
 		Pin-Priority: -10
 	EOF
-
-	# disable repo if SKIP_ARMBIAN_REPO=yes
-	if [[ "${SKIP_ARMBIAN_REPO}" == "yes" ]]; then
-		display_alert "Disabling armbian repo" "${ARCH}-${RELEASE}" "wrn"
-		mv "${SDCARD}"/etc/apt/sources.list.d/armbian.list "${SDCARD}"/etc/apt/sources.list.d/armbian.list.disabled
-	fi
 
 }

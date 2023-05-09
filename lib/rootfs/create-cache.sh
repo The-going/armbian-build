@@ -137,7 +137,13 @@ prepare_basic_rootfs() {
 		rm $SDCARD/etc/resolv.conf
 		echo "nameserver $NAMESERVER" >> $SDCARD/etc/resolv.conf
 
-		create_sources_list "$RELEASE" "$SDCARD/"
+		create_sources_list "$RELEASE" "$SDCARD"
+		# Add Armbian repo if ADD_ARMBIAN_REPO=yes
+		if [[ "${ADD_ARMBIAN_REPO}" == "yes" ]]; then
+			display_alert "Adding Armbian repo" "${ARCH}-${RELEASE}" "wrn"
+			add_armbian_sources_list "$RELEASE" "$SDCARD"
+		fi
+
 		[[ $date_diff -ge 7 ]] && {
 			mount_chroot "$SDCARD"
 			upgrade_packages
@@ -249,7 +255,13 @@ create_rootfs_cache() {
 	fi
 
 	# stage: create apt-get sources list
-	create_sources_list "$RELEASE" "$SDCARD/"
+	create_sources_list "$RELEASE" "$SDCARD"
+
+	# Add Armbian repo if ADD_ARMBIAN_REPO=yes
+	if [[ "${ADD_ARMBIAN_REPO}" == "yes" ]]; then
+		display_alert "Adding Armbian repo" "${ARCH}-${RELEASE}" "wrn"
+		add_armbian_sources_list "$RELEASE" "$SDCARD"
+	fi
 
 	# add armhf arhitecture to arm64, unless configured not to do so.
 	if [[ "a${ARMHF_ARCH}" != "askip" ]]; then
