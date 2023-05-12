@@ -115,7 +115,7 @@ create_sources_list() {
 			EOF
 			;;
 
-		bullseye | bookworm | trixie)
+		bullseye | trixie)
 			cat <<- EOF > "${basedir}"/etc/apt/sources.list
 				deb http://${DEBIAN_MIRROR} $release main contrib non-free
 				#deb-src http://${DEBIAN_MIRROR} $release main contrib non-free
@@ -128,6 +128,22 @@ create_sources_list() {
 
 				deb http://${DEBIAN_SECURTY} ${release}-security main contrib non-free
 				#deb-src http://${DEBIAN_SECURTY} ${release}-security main contrib non-free
+			EOF
+			;;
+
+		bookworm)
+			cat <<- EOF > "${basedir}"/etc/apt/sources.list
+				deb http://${DEBIAN_MIRROR} $release main contrib non-free non-free-firmware
+				#deb-src http://${DEBIAN_MIRROR} $release main contrib non-free non-free-firmware
+
+				deb http://${DEBIAN_MIRROR} ${release}-updates main contrib non-free non-free-firmware
+				#deb-src http://${DEBIAN_MIRROR} ${release}-updates main contrib non-free non-free-firmware
+
+				deb http://${DEBIAN_MIRROR} ${release}-backports main contrib non-free non-free-firmware
+				#deb-src http://${DEBIAN_MIRROR} ${release}-backports main contrib non-free non-free-firmware
+
+				deb http://${DEBIAN_SECURTY} ${release}-security main contrib non-free non-free-firmware
+				#deb-src http://${DEBIAN_SECURTY} ${release}-security main contrib non-free non-free-firmware
 			EOF
 			;;
 
