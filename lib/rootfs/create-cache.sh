@@ -278,15 +278,15 @@ create_rootfs_cache() {
 	upgrade_packages
 
 	# stage: install additional packages
-	display_alert "Installing the main packages for" "Armbian" "info"
+	display_alert "Installing the main packages for" "${RELEASE}" "info"
 	eval 'LC_ALL=C LANG=C chroot $SDCARD /bin/bash -e -c "DEBIAN_FRONTEND=noninteractive apt-get -y -q \
 		$apt_extra $apt_extra_progress --no-install-recommends install $PACKAGE_MAIN_LIST"' \
 		${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/debootstrap.log'} \
-		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Installing Armbian main packages..." $TTY_Y $TTY_X'} \
+		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Installing ${RELEASE} main packages..." $TTY_Y $TTY_X'} \
 		${OUTPUT_VERYSILENT:+' >/dev/null 2>/dev/null'} ';EVALPIPE=(${PIPESTATUS[@]})'
 
 	[[ ${EVALPIPE[0]} -ne 0 ]] &&
-	exit_with_error "Installation of Armbian main packages for ${BRANCH} ${BOARD} ${RELEASE} ${DESKTOP_APPGROUPS_SELECTED} ${DESKTOP_ENVIRONMENT} ${BUILD_MINIMAL} failed"
+	exit_with_error "Installation of ${RELEASE} main packages for ${BRANCH} ${BOARD} ${DESKTOP_APPGROUPS_SELECTED} ${DESKTOP_ENVIRONMENT} ${BUILD_MINIMAL} failed"
 
 	if [[ $BUILD_DESKTOP == "yes" ]]; then
 
@@ -301,15 +301,15 @@ create_rootfs_cache() {
 			apt_desktop_install_flags+=" --no-install-recommends"
 		fi
 
-		display_alert "Installing the desktop packages for" "Armbian" "info"
+		display_alert "Installing the desktop packages for" "${RELEASE}" "info"
 		eval 'LC_ALL=C LANG=C chroot $SDCARD /bin/bash -e -c "DEBIAN_FRONTEND=noninteractive apt-get -y -q \
 			$apt_extra $apt_extra_progress install ${apt_desktop_install_flags} $PACKAGE_LIST_DESKTOP"' \
 			${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/debootstrap.log'} \
-			${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Installing Armbian desktop packages..." $TTY_Y $TTY_X'} \
+			${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Installing ${RELEASE} desktop packages..." $TTY_Y $TTY_X'} \
 			${OUTPUT_VERYSILENT:+' >/dev/null 2>/dev/null'} ';EVALPIPE=(${PIPESTATUS[@]})'
 
 		[[ ${EVALPIPE[0]} -ne 0 ]] &&
-		exit_with_error "Installation of Armbian desktop packages for ${BRANCH} ${BOARD} ${RELEASE} ${DESKTOP_APPGROUPS_SELECTED} ${DESKTOP_ENVIRONMENT} ${BUILD_MINIMAL} failed"
+		exit_with_error "Installation of ${RELEASE} desktop packages for ${BRANCH} ${BOARD} ${DESKTOP_APPGROUPS_SELECTED} ${DESKTOP_ENVIRONMENT} ${BUILD_MINIMAL} failed"
 	fi
 
 	# stage: check md5 sum of installed packages. Just in case.
@@ -325,18 +325,18 @@ create_rootfs_cache() {
 		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Removing packages.uninstall packages..." $TTY_Y $TTY_X'} \
 		${OUTPUT_VERYSILENT:+' >/dev/null 2>/dev/null'} ';EVALPIPE=(${PIPESTATUS[@]})'
 
-	[[ ${EVALPIPE[0]} -ne 0 ]] && exit_with_error "Installation of Armbian packages failed"
+	[[ ${EVALPIPE[0]} -ne 0 ]] && exit_with_error "Uninstall of ${RELEASE} packages failed"
 
 	# stage: purge residual packages
-	display_alert "Purging residual packages for" "Armbian" "info"
-	PURGINGPACKAGES=$(chroot $SDCARD /bin/bash -c "dpkg -l | grep \"^rc\" | awk '{print \$2}' | tr \"\n\" \" \"")
+	display_alert "Purging residual packages for" "${RELEASE}" "info"
+	PURGINGPACKAGES=$(chroot $SDCARD /bin/bash -c "dpkg -l | awk '/^rc/ {print \$2}' | tr \"\n\" \" \"")
 	eval 'LC_ALL=C LANG=C chroot $SDCARD /bin/bash -e -c "DEBIAN_FRONTEND=noninteractive apt-get -y -q \
 		$apt_extra $apt_extra_progress remove --purge $PURGINGPACKAGES"' \
 		${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/debootstrap.log'} \
-		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Purging residual Armbian packages..." $TTY_Y $TTY_X'} \
+		${OUTPUT_DIALOG:+' | dialog --backtitle "$backtitle" --progressbox "Purging residual ${RELEASE} packages..." $TTY_Y $TTY_X'} \
 		${OUTPUT_VERYSILENT:+' >/dev/null 2>/dev/null'} ';EVALPIPE=(${PIPESTATUS[@]})'
 
-	[[ ${EVALPIPE[0]} -ne 0 ]] && exit_with_error "Purging of residual Armbian packages failed"
+	[[ ${EVALPIPE[0]} -ne 0 ]] && exit_with_error "Purging of residual ${RELEASE} packages failed"
 
 	# stage: remove downloaded packages
 	chroot $SDCARD /bin/bash -c "apt-get -y autoremove; apt-get clean"
