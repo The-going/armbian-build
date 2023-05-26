@@ -12,8 +12,8 @@ LINUXFAMILY=sunxi64
 case $BRANCH in
 
 	legacy)
-		KERNEL_VERSION_LEVEL="5.10"
-		KERNELSWITCHOBJ="tag=v5.10.138"
+		KERNEL_VERSION_LEVEL="5.15"
+		KERNELSWITCHOBJ="tag=v5.15.113"
 		;;
 
 	current)
