@@ -314,7 +314,7 @@ chroot_build_packages() {
 			src_dir="${SRC}"/packages/deb-build/${package_name}
 			config_for_packages="watch"
 		else
-			display_alert "Нет конфигурации для пакета" "${package_name}" "wrn"
+			display_alert "Attempt to rebuild the system package" "${package_name}" "wrn"
 			config_for_packages="src"
 			src_dir="${USERPATCHES_PATH}"/packages/deb-build/${package_name}
 			mkdir -p $src_dir; chmod 777 $src_dir
@@ -329,20 +329,13 @@ chroot_build_packages() {
 			source "${config_for_packages}"
 		fi
 
-		# check build condition
-		if [[ $(type -t package_checkbuild) == function ]] && ! package_checkbuild; then
-			display_alert "Skipping building $package_name for" "$release/$arch"
-			continue
-		fi
-
 		local pkg_target_dir="${DEB_STORAGE}/${release}/${package_name}"
 		mkdir -p "${pkg_target_dir}"
 		local src_cache_dir="${SRC}"/cache/sources/$package_name
 		mkdir -p "${src_cache_dir}"
 
 		# check if needs building
-		echo "$(find "${pkg_target_dir}/" -name "${package_name}"_'*'_"$arch".deb)" >&2
-		if [[ -f $(find "${pkg_target_dir}/" -name "${package_name}"_'*'_"$arch".deb) ]]; then
+		if [[ -f $(find "${pkg_target_dir}/" -name ${package_name}'*'${arch}.deb) ]]; then
 			display_alert "Packages are up to date" "$package_name $release/$arch" "info"
 			continue
 		fi
@@ -392,13 +385,19 @@ chroot_build_packages() {
 		create_build_script
 		unset LOG_OUTPUT_FILE
 
+		if [ "$CMDLINE" != "" ]; then
+			command_line='/bin/bash'
+		else
+			command_line='/bin/bash -c \"/root/build.sh\"'
+		fi
+
 		eval systemd-nspawn -a -q \
 				--capability=CAP_MKNOD -D "${build_dir}" \
 				--tmpfs=/root/build \
 				--tmpfs=/tmp:mode=777 \
-				--bind-ro "$src_dir"/:/root/overlay \
+				--bind "$(dirname $src_dir)"/:/root/overlay \
 				--bind-ro "${SRC}"/cache/sources/:/root/sources \
-				/bin/bash -c "/root/build.sh" \
+				$command_line \
 				${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/buildpkg.log'} 2>&1 \
 				';EVALPIPE=(${PIPESTATUS[@]})'
 
@@ -407,7 +406,7 @@ chroot_build_packages() {
 			mv "${build_dir}"/root/build.sh "$DEST/${LOG_SUBPATH}/"
 		else
 			built_ok+=("$package_name:$release/$arch")
-			mv "${build_dir}"/root/"$package_name"*"$arch"* "${pkg_target_dir}" 2> /dev/null
+			mv "${build_dir}"/root/{*.deb,*.changes,*.buildinfo} "${pkg_target_dir}/"
 		fi
 
 		mv "${build_dir}"/root/*.log "$DEST/${LOG_SUBPATH}/"
