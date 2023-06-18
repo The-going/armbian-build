@@ -96,13 +96,31 @@ create_chroot() {
 
 	# Install some packages with a large list of dependencies after the update.
 	# This optimizes the process and eliminates looping when calculating
-	# dependencies.
+	# dependencies. Choose between a clean build environment and a full
+	# development environment.
+	case ${CHROOT_CACHE_VERSION} in
+		clean) list="debhelper devscripts pkg-config lsb-release"
+		;;
+		devel) list="debhelper devscripts pkg-config lsb-release intltool-debian \
+		autoconf autoconf-archive automake m4 dh-autoreconf dh-python dh-make \
+		python3-dev dh-sequence-python3 python3-lxml python3-xlib \
+		asciidoc asciidoc-dblatex doxygen graphviz docbook-to-man docbook-utils \
+		docbook-xsl help2man po4a dblatex \
+		gettext gettext-base texlive-xetex texlive-extra-utils texlive-font-utils \
+		texlive-latex-recommended texlive-fonts-recommended texlive-lang-cyrillic \
+		texlive-lang-european texlive-lang-french texlive-lang-german \
+		texlive-lang-polish texlive-lang-spanish fonts-dejavu yapps2 patchutils \
+		dh-make gpg fakeroot tree mc"
+		;;
+	esac
+
 	eval 'LC_ALL=C LANG=C chroot "${target_dir}" \
 		/bin/bash -c "apt-get install \
-		-q -y --no-install-recommends debhelper devscripts"'
+		-q -y --no-install-recommends $list"'
 
+	# ignore for "bookworm", "sid"
 	case $release in
-		bullseye | bookworm | sid | focal | hirsute )
+		bullseye | focal | hirsute )
 			eval 'LC_ALL=C LANG=C chroot "${target_dir}" \
 			/bin/bash -c "apt-get install python-is-python3"'
 			;;
@@ -158,10 +176,15 @@ chroot_prepare_distccd() {
 create_clean_environment_archive() {
 	local release=$1
 	local arch=$2
-	local t_name=${release}-${arch}-v${3}
+	local t_name=${release}-${arch}-${3}
 	local tmp_dir=$(mktemp -d "${SRC}"/.tmp/debootstrap-XXXXX)
 
 	create_chroot "${tmp_dir}/${t_name}" "${release}" "${arch}"
+	# create list of installed packages
+	chroot "${tmp_dir}/${t_name}" /bin/bash -c \
+		"dpkg -l | awk '/^ii/ { print \$2\",\"\$3 }'" > \
+		"${SRC}/cache/buildpkg/${t_name}.list" 2>&1
+
 	display_alert "Create a clean Environment archive" "${t_name}.tar.xz" "info"
 	(
 		tar -cp --directory="${tmp_dir}/" ${t_name} |
@@ -207,7 +230,7 @@ chroot_build_packages() {
 		exit_with_error "No packages selected"
 	fi
 
-	local t_name=${release}-${arch}-v${CHROOT_CACHE_VERSION}
+	local t_name=${release}-${arch}-${CHROOT_CACHE_VERSION}
 	local distcc_bindaddr="127.0.0.2"
 
 	# Create a clean environment archive if it does not exist.
@@ -245,9 +268,11 @@ chroot_build_packages() {
 		exit_with_error "Clean Environment is not visible" "$build_dir"
 
 	local t=$build_dir/root/.update-timestamp
-	if [[ ! -f ${t} || $((($(date +%s) - $(< "${t}")) / 86400)) -gt 3 ]]; then
+	if [[ ! -f ${t} || $((($(date +%s) - $(< "${t}")) / 86400)) -gt 7 ]]; then
 		display_alert "Upgrading packages" "$release/$arch" "info"
-		systemd-nspawn -a -q -D "${build_dir}" /bin/bash -c "apt-get -q update; apt-get -q -y upgrade; apt-get clean"
+		systemd-nspawn -a -q \
+			-D "${build_dir}" \
+			/bin/bash -c "apt-get -q update; apt-get -q -y upgrade; apt-get clean"
 		date +%s > "${t}"
 		display_alert "Repack a clean Environment archive after upgrading" "${t_name}.tar.xz" "info"
 		rm "${SRC}/cache/buildpkg/${t_name}.tar.xz"
@@ -256,14 +281,16 @@ chroot_build_packages() {
 				pv -p -b -r -s "$(du -sb "${tmp_dir}/${t_name}" | cut -f1)" |
 				pixz -4 > "${SRC}/cache/buildpkg/${t_name}.tar.xz"
 		)
-		# DEBUG
-		cat $build_dir/etc/apt/sources.list >>"$DEST/${LOG_SUBPATH}/${t_name}.log"
+		# create list of installed packages
+		rm "${SRC}/cache/buildpkg/${t_name}.list"
+		chroot "${tmp_dir}/${t_name}" /bin/bash -c \
+			"dpkg -l | awk '/^ii/ { print \$2\",\"\$3 }'" > \
+			"${SRC}/cache/buildpkg/${t_name}.list" 2>&1
 	fi
 
 	local config_for_packages=""
 	local src_dir
 
-	display_alert "Final config:" "$config_for_packages" "ext"
 	for package_name in $selected_packages; do
 		# Processing variables for three variants of the build scenario.
 		if [ -f "${USERPATCHES_PATH}"/packages/deb-build/${package_name}.conf ]; then
@@ -282,7 +309,7 @@ chroot_build_packages() {
 			display_alert "Нет конфигурации для пакета" "${package_name}" "wrn"
 			config_for_packages="src"
 			src_dir="${USERPATCHES_PATH}"/packages/deb-build/${package_name}
-			mkdir -p $src_dir
+			mkdir -p $src_dir; chmod 777 $src_dir
 		fi
 
 		unset package_repo package_ref package_builddeps \
@@ -314,7 +341,8 @@ chroot_build_packages() {
 
 		# Delete the environment if there was a build in it.
 		# And unpack the clean environment again.
-		if [[ -f "${build_dir}"/root/build.sh ]] && [[ -d $tmp_dir ]]; then
+		if [[ -f "${build_dir}"/root/build.sh ]] &&
+		   [[ -d $tmp_dir ]] && [[ "${CHROOT_CACHE_VERSION}" == clean ]]; then
 			rm -rf $tmp_dir
 			local tmp_dir=$(mktemp -d "${SRC}"/.tmp/build-XXXXX)
 			(
