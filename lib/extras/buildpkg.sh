@@ -177,7 +177,7 @@ create_clean_environment_archive() {
 	local release=$1
 	local arch=$2
 	local t_name=${release}-${arch}-${3}
-	local tmp_dir=$(mktemp -d "${SRC}"/.tmp/debootstrap-XXXXX)
+	local tmp_dir=$(mktemp -d ${TMPBASEDIR}/debootstrap-XXXXX)
 
 	create_chroot "${tmp_dir}/${t_name}" "${release}" "${arch}"
 	# create list of installed packages
@@ -233,6 +233,14 @@ chroot_build_packages() {
 	local t_name=${release}-${arch}-${CHROOT_CACHE_VERSION}
 	local distcc_bindaddr="127.0.0.2"
 
+	if [ "$(findmnt -n -o FSTYPE --target /tmp)"  == "tmpfs" ]; then
+	   tmpsyze=$(($(findmnt -n -b -o AVAIL --target /tmp) / (1024 * 1024)))
+	   display_alert "Size /tmp as tmpfs" "$tmpsyze M" "ext"
+	   [[ $tmpsyze -ge 8000 ]] && TMPBASEDIR="/tmp"
+	else
+	   TMPBASEDIR="${SRC}/.tmp"
+	fi
+
 	# Create a clean environment archive if it does not exist.
 	if [ ! -f "${SRC}/cache/buildpkg/${t_name}.tar.xz" ]; then
 		create_clean_environment_archive $release $arch ${CHROOT_CACHE_VERSION}
@@ -240,7 +248,7 @@ chroot_build_packages() {
 
 	# Unpack the clean environment archive, if it exists.
 	if [ -f "${SRC}/cache/buildpkg/${t_name}.tar.xz" ]; then
-		local tmp_dir=$(mktemp -d "${SRC}"/.tmp/build-XXXXX)
+		local tmp_dir=$(mktemp -d ${TMPBASEDIR}/build-XXXXX)
 		(
 			cd $tmp_dir
 			display_alert "Unpack the clean environment" "${t_name}.tar.xz" "info"
@@ -344,7 +352,7 @@ chroot_build_packages() {
 		if [[ -f "${build_dir}"/root/build.sh ]] &&
 		   [[ -d $tmp_dir ]] && [[ "${CHROOT_CACHE_VERSION}" == clean ]]; then
 			rm -rf $tmp_dir
-			local tmp_dir=$(mktemp -d "${SRC}"/.tmp/build-XXXXX)
+			local tmp_dir=$(mktemp -d ${TMPBASEDIR}/build-XXXXX)
 			(
 				cd $tmp_dir
 				display_alert "Unpack the clean environment" "${t_name}.tar.xz" "info"
