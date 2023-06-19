@@ -441,27 +441,32 @@ chroot_build_packages() {
 #   "$2" - Full path to target build directory
 check_debian_build_version() {
 	local src_dir="$1"
-	local dst_dir="$2"
+	local src_cache_dir="$2"
 
-	if [ -f $src_dir/debian/watch ]; then
+	for n in $(
+		cd $src_dir
+		uscan -v --destdir "$src_cache_dir" | \
+		awk '$1 ~ /^version|^package|newversion/{sub(/\$/,"",$1); print $1 $2 $3}'
+		)
+	do
+		eval "local $n"
+	done
 
-		for n in $(
-			cd $src_dir; uscan -v | awk '$1 ~ /^version|^package/{print $1 $2 $3}'
-			)
-		do
-			eval "local $n"
-		done
-		# DEBUG
-		echo "package=:$package" >&2
-		echo "version=:$version" >&2
+	if [[ -v newversion ]];then
+		display_alert "package=:${package}\n" "newversion=${newversion}\n" "line"
+		local newtarball=$(find ${src_cache_dir}/ -name ${package}_${newversion}.orig.tar'*')
+		display_alert "\n" "newtarball=${newtarball}\n" "line"
 	fi
 
-	local tarball=$(find ${dst_dir}/ -name ${package}_${version}.orig.tar'*')
+	local tarball=$(find ${src_cache_dir}/ -name ${package}_${version}.orig.tar'*')
 	if [ "$tarball" == "" ]; then
-		$(cd $src_dir; uscan --download-current-version --destdir "$dst_dir")
-	else
-		echo -e "Tarball exist:\n$tarball"
+		$(cd $src_dir; uscan --download-current-version --destdir "$src_cache_dir")
+		tarball=$(find ${src_cache_dir}/ -name ${package}_${version}.orig.tar'*')
 	fi
+
+	display_alert "tarball=:${tarball}\n" "" "line"
+	PKG_NAME_="$package"
+	PKG_NAME_VERSION="$version"
 
 } # apt-cache show devscripts
 
