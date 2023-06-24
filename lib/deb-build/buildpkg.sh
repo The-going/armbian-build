@@ -38,7 +38,6 @@ chroot_build_packages() {
 	fi
 
 	local t_name=${release}-${arch}-${CHROOT_CACHE_VERSION}
-	local distcc_bindaddr="127.0.0.2"
 
 	if [ "$(findmnt -n -o FSTYPE --target /tmp)"  == "tmpfs" ]; then
 	   tmpsyze=$(($(findmnt -n -b -o AVAIL --target /tmp) / (1024 * 1024)))
@@ -70,14 +69,16 @@ chroot_build_packages() {
 	[[ -f /var/run/distcc/"${release}-${arch}".pid ]] &&
 		kill "$(< "/var/run/distcc/${release}-${arch}.pid")" > /dev/null 2>&1
 
-	preparing_distccd "${release}" "${arch}"
-
-	# DISTCC_TCP_DEFER_ACCEPT=0
-	DISTCC_CMDLIST=/tmp/distcc/${release}-${arch}/cmdlist \
+	if distcc_build_implement ; then
+		preparing_distccd "${release}" "${arch}"
+		local distcc_bindaddr="127.0.0.2"
+		# DISTCC_TCP_DEFER_ACCEPT=0
+		DISTCC_CMDLIST=/tmp/distcc/${release}-${arch}/cmdlist \
 				TMPDIR=/tmp/distcc distccd --daemon \
 				--pid-file "/var/run/distcc/${release}-${arch}.pid" \
 				--listen $distcc_bindaddr --allow 127.0.0.0/24 \
 				--log-file "/tmp/distcc/${release}-${arch}.log" --user distccd
+	fi
 
 	[[ -d $build_dir ]] ||
 		exit_with_error "Clean Environment is not visible" "$build_dir"
@@ -224,8 +225,11 @@ chroot_build_packages() {
 
 	# Delete a temporary directory
 	if [ -d $tmp_dir ]; then rm -rf $tmp_dir; fi
+
 	# cleanup for distcc
-	kill $(< /var/run/distcc/${release}-${arch}.pid)
+	if [ -f /var/run/distcc/${release}-${arch}.pid ]; then
+		kill $(< /var/run/distcc/${release}-${arch}.pid)
+	fi
 
 	if [[ ${#built_ok[@]} -gt 0 ]]; then
 		display_alert "Following packages were built without errors" "" "info"
@@ -286,21 +290,29 @@ create_build_script() {
 	export HOME="/root"
 	export DEBIAN_FRONTEND="noninteractive"
 	export DEB_BUILD_OPTIONS="nocheck noautodbgsym"
-	export CCACHE_TEMPDIR="/tmp"
-	# distcc is disabled to prevent compilation issues due
-	# to different host and cross toolchain configurations
-	#export CCACHE_PREFIX="distcc"
-	# uncomment for debug
-	#export CCACHE_RECACHE="true"
-	#export CCACHE_DISABLE="true"
-	export DISTCC_HOSTS="$distcc_bindaddr"
 	export DEBFULLNAME="$MAINTAINER"
 	export DEBEMAIL="$MAINTAINERMAIL"
-	$(declare -f display_alert)
-	$(declare -f check_debian_build_version)
 
 	LOG_OUTPUT_FILE=$LOG_OUTPUT_FILE
+	$(declare -f display_alert)
+
 	$(declare -f install_pkg_deb)
+	EOF
+
+	# distcc is disabled to prevent compilation issues due
+	# to different host and cross toolchain configurations
+	if distcc_build_implement ; then
+		cat <<-EOF >> "${build_dir}"/root/build.sh
+
+		export DISTCC_HOSTS="$distcc_bindaddr"
+		export CCACHE_PREFIX="distcc"
+		# uncomment for debug
+		#export CCACHE_RECACHE="true"
+		#export CCACHE_DISABLE="true"
+		EOF
+	fi
+
+	cat <<EOF>> "${build_dir}"/root/build.sh
 
 	cd /root/build
 

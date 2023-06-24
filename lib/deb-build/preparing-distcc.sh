@@ -37,4 +37,13 @@ preparing_distccd() {
 	chown -R distccd /tmp/distcc
 }
 
- 
+# distcc_build_implement
+#
+# When we build only locally, we don't need "distcc". When we use a parallel
+# network-distributed assembly, we must clearly define who is the server and
+# who are the clients for the target architecture\distribution in this function.
+# It returns true when it analyzes or initializes the necessary variables.
+#
+distcc_build_implement() {
+	false
+}
