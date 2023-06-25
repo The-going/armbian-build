@@ -164,7 +164,7 @@ chroot_build_packages() {
 		fi
 
 		display_alert "Building packages" "$package_name $release/$arch" "ext"
-		ts=$(date +%s)
+		local ts=$(date +%s)
 		local dist_builddeps_name="package_builddeps_${release}"
 		[[ -v $dist_builddeps_name ]] && package_builddeps="${package_builddeps} ${!dist_builddeps_name}"
 
@@ -219,8 +219,10 @@ chroot_build_packages() {
 
 		mv "${build_dir}"/root/*.log "$DEST/${LOG_SUBPATH}/"
 
-		te=$(date +%s)
-		display_alert "Build time $package_name " " $(($te - $ts)) sec." "info"
+		local te=$(date +%s)
+		local runtime_secs=$((te - ts))
+		local runtime_m_s="$(printf "%dm:%02ds" $((runtime_secs / 60)) $((runtime_secs % 60)))"
+		display_alert "Build time $package_name " "$runtime_m_s" "info"
 	done
 
 	# Delete a temporary directory
