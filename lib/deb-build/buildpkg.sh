@@ -106,44 +106,29 @@ chroot_build_packages() {
 
 	local config_for_packages=""
 	local src_dir
+	local work_dir=${WORK_DIR:-${USERPATCHES_PATH}}/packages/deb-build
 
 	for package_name in $selected_packages; do
-		# Processing variables for three variants of the build scenario.
-		if [ -f "${USERPATCHES_PATH}"/packages/deb-build/${package_name}.conf ]; then
-			config_for_packages="${USERPATCHES_PATH}"/packages/deb-build/${package_name}.conf
-			src_dir="${USERPATCHES_PATH}"/packages/deb-build/${package_name}
-		elif [ -f "${SRC}"/packages/deb-build/${package_name}.conf ]; then
-			config_for_packages="${SRC}"/packages/deb-build/${package_name}.conf
-			src_dir="${SRC}"/packages/deb-build/${package_name}
-		elif [ -f "${USERPATCHES_PATH}"/packages/deb-build/${package_name}/debian/watch ]; then
-			src_dir="${USERPATCHES_PATH}"/packages/deb-build/${package_name}
-			config_for_packages="watch"
-		elif [ -f "${SRC}"/packages/deb-build/${package_name}/debian/watch ]; then
-			src_dir="${SRC}"/packages/deb-build/${package_name}
-			config_for_packages="watch"
-		else
-			display_alert "Attempt to rebuild the system package" "${package_name}" "wrn"
-			config_for_packages="src"
-			src_dir="${USERPATCHES_PATH}"/packages/deb-build/${package_name}
-			mkdir -p $src_dir; chmod 777 $src_dir
-		fi
 
 		unset package_repo package_ref package_builddeps \
 			  package_install_chroot package_install_target \
-			  package_upstream_version needs_building pkg_target_dir \
+			  package_version package_upstream_version pkg_target_dir \
 			  package_component "package_builddeps_${release}"
-
-		if [ -f $config_for_packages ]; then
-			source "${config_for_packages}"
-		fi
 
 		local pkg_target_dir="${DEB_STORAGE}/${release}/${package_name}"
 		mkdir -p "${pkg_target_dir}"
-		local src_cache_dir="${SRC}"/cache/sources/$package_name
-		mkdir -p "${src_cache_dir}"
+
+		# Processing variables for several variants of the build scenario.
+		if [ -f "${work_dir}/${package_name}/config" ]; then
+			source "${work_dir}/${package_name}/config"
+		elif [ -f "${SRC}/packages/deb-build/${package_name}/config" ]; then
+			source "${SRC}/packages/deb-build/${package_name}/config"
+		fi
+
+		processing_build_scenario
 
 		# check if needs building
-		if [[ -f $(find "${pkg_target_dir}/" -name ${package_name}'*'${arch}.deb) ]]; then
+		if [[ -f $(find "${pkg_target_dir}/" -name ${package_name}_${package_version}*${arch}.deb) ]]; then
 			display_alert "Packages are up to date" "$package_name $release/$arch" "info"
 			continue
 		fi
@@ -182,12 +167,6 @@ chroot_build_packages() {
 			file_linux_libcdev="/root/$(basename $pkg_linux_libcdev)"
 		fi
 
-		if [[ "${package_repo%:*}" == http* ]] && [ -n "$package_ref" ]; then
-			fetch_from_repo "$package_repo" "$package_name" "$package_ref"
-		elif [ "$config_for_packages" == "watch" ]; then
-			check_debian_build_version "${src_dir}" "${src_cache_dir}"
-		fi
-
 		# create build script
 		LOG_OUTPUT_FILE=/root/build-"${package_name}".log
 		create_build_script
@@ -203,7 +182,7 @@ chroot_build_packages() {
 				--capability=CAP_MKNOD -D "${build_dir}" \
 				--tmpfs=/root/build \
 				--tmpfs=/tmp:mode=777 \
-				--bind "$(dirname $src_dir)"/:/root/overlay \
+				--bind "${work_dir}"/:/root/overlay \
 				--bind-ro "${SRC}"/cache/sources/:/root/sources \
 				$command_line \
 				${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/buildpkg.log'} 2>&1 \
@@ -211,12 +190,12 @@ chroot_build_packages() {
 
 		if [[ ${EVALPIPE[0]} -ne 0 ]]; then
 			failed+=("$package_name:$release/$arch")
-			mv "${build_dir}"/root/build.sh "$DEST/${LOG_SUBPATH}/"
 		else
 			built_ok+=("$package_name:$release/$arch")
 			mv "${build_dir}"/root/{*.deb,*.changes,*.buildinfo} "${pkg_target_dir}/"
 		fi
 
+		mv "${build_dir}"/root/build.sh "$DEST/${LOG_SUBPATH}/${package_name}-build.sh.log"
 		mv "${build_dir}"/root/*.log "$DEST/${LOG_SUBPATH}/"
 
 		local te=$(date +%s)
@@ -254,35 +233,97 @@ chroot_build_packages() {
 #   "$2" - Full path to target build directory
 check_debian_build_version() {
 	local src_dir="$1"
-	local src_cache_dir="$2"
+	local user_work_dir="${2:-${src_dir}/..}"
 
 	for n in $(
 		cd $src_dir
-		uscan -v --destdir "$src_cache_dir" | \
+		uscan -v --destdir "$user_work_dir" | \
 		awk '$1 ~ /^version|^package|newversion/{sub(/\$/,"",$1); print $1 $2 $3}'
 		)
 	do
 		eval "local $n"
 	done
 
-	if [[ -v newversion ]];then
-		display_alert "package=:${package}\n" "newversion=${newversion}\n" "line"
-		local newtarball=$(find ${src_cache_dir}/ -name ${package}_${newversion}.orig.tar'*')
-		display_alert "\n" "newtarball=${newtarball}\n" "line"
-	fi
-
-	local tarball=$(find ${src_cache_dir}/ -name ${package}_${version}.orig.tar'*')
+	local tarball=$(find ${user_work_dir}/ -name ${package}_${version}.orig.tar'*')
 	if [ "$tarball" == "" ]; then
-		$(cd $src_dir; uscan --download-current-version --destdir "$src_cache_dir")
-		tarball=$(find ${src_cache_dir}/ -name ${package}_${version}.orig.tar'*')
+		$(
+			cd $src_dir
+			uscan --download-current-version --destdir "$user_work_dir"  2>/dev/null
+		)
+		tarball=$(find ${user_work_dir}/ -name ${package}_${version}.orig.tar'*')
 	fi
 
-	display_alert "tarball=:${tarball}\n" "" "line"
-	PKG_NAME_="$package"
-	PKG_NAME_VERSION="$version"
+	display_alert "package=:" "${package}" "line"
+	display_alert "version=:" "${version}" "line"
+	display_alert "tarball=:" "${tarball}" "line"
+	if [ -v newversion ] && [ "${version}" != "$newversion" ];then
+		local newtarball=$(find ${user_work_dir}/ -name ${package}_${newversion}.orig.tar'*')
+		display_alert "newversion=:" "$newversion" "line"
+		display_alert "newtarball=:" "${newtarball}" "line"
+	fi
+	PKG_SRC_FILE="${tarball}"
+	PKG_ORIG_VERSION="$version"
 
 } # apt-cache show devscripts
 
+
+
+# Processing variables for several variants of the build scenario.
+# The "packages/deb-build/${package_name}" folder must contain at least
+# two archives:
+#              ${package_name}_${version}.orig.tar.xz
+#              ${package_name}_${version}-${localversion}.debian.tar.xz
+# and a        ${package_name}_${version}-${localversion}.dsc           file
+#
+# package_version=${version}-${localversion}
+#
+processing_build_scenario() {
+
+	if package_version=$(awk '/^Version:/{print $2}' ${work_dir}/${package_name}/*.dsc 2>/dev/null) && \
+		[ -f ${work_dir}/${package_name}/${package_name}_${package_version}.debian.tar.* ] && \
+		[ -f ${work_dir}/${package_name}/${package_name}_${package_version%-*}.orig.tar.* ]; then
+			if [ "${package_version%-*}" != "${package_version#*-}" ]; then
+				local version=${package_version%-*}
+				local localversion=${package_version#*-}
+			else
+				local version=${package_version%-*}
+			fi
+		method="dsc"
+
+	elif [[ "${package_repo%:*}" == http* ]] && [ -n "$package_ref" ]; then
+		method="git"
+		fetch_from_repo "$package_repo" "$package_name" "$package_ref"
+		# TODO
+
+	elif package_version=$(
+			dpkg-parsechangelog -S Version \
+				-l "${work_dir}"/${package_name}/${package_name}-*/debian/changelog 2>/dev/null
+			) && [ -f "${work_dir}"/${package_name}/${package_name}_${package_version%-*}.orig.tar.* ] &&
+			[ -f "${work_dir}"/${package_name}/${package_name}-${package_version%-*}/debian/watch ]; then
+		method="watch"
+		check_debian_build_version "${work_dir}/${package_name}/${package_name}-${package_version%-*}"
+
+	elif [ -f "${SRC}"/packages/deb-build/${package_name}/debian/watch ] &&
+		package_version=$(
+			dpkg-parsechangelog -S Version -l "${SRC}"/packages/deb-build/${package_name}/debian/changelog 2>/dev/null
+			) && [ ! -d "${work_dir}"/${package_name}/${package_name}-${package_version%-*}/debian ]; then
+		mkdir -p -m 775 "${work_dir}"/${package_name}
+		check_debian_build_version "${SRC}/packages/deb-build/${package_name}" "${work_dir}/${package_name}"
+		$(cd "${work_dir}/${package_name}"; sudo --group=sudo tar -xaf $PKG_SRC_FILE)
+		sudo --group=sudo cp -r "${SRC}"/packages/deb-build/${package_name}/debian \
+			"${work_dir}"/${package_name}/${package_name}-${package_version%-*}/
+		# version=$PKG_ORIG_VERSION
+		method="watch"
+
+	else
+		display_alert "Attempt to rebuild the system package" "${package_name}" "info"
+		method="src"
+		mkdir -p "${work_dir}/${package_name}"
+		chmod 775 "${work_dir}/${package_name}"
+	fi
+
+	display_alert "method=:" "${method}" "line"
+}
 
 # create build script
 create_build_script() {
@@ -314,57 +355,101 @@ create_build_script() {
 		EOF
 	fi
 
+	case $method in
+		dsc)
+		cat <<EOF>> "${build_dir}"/root/build.sh
+
+cd /root/overlay/${package_name}
+dpkg-source --extract ${package_name}_${package_version}.dsc /root/build/${package_name}-${package_version%-*}
+cd /root/build/${package_name}-${package_version%-*}
+EOF
+		;;
+		src)
+		cat <<EOF>> "${build_dir}"/root/build.sh
+
+cd /root/build
+apt-get source ${package_name}
+if package_version=\$(awk '/^Version:/{print \$2}' ${package_name}*.dsc 2>/dev/null) &&
+	[ -d /root/overlay/${package_name} ];then
+		cp ./{${package_name}*.dsc,${package_name}_*.debian.tar.*,${package_name}_*orig.tar.*} /root/overlay/${package_name}/
+fi
+cd ${package_name}-\${package_version%-*}
+apt-get build-dep -y "${package_name}" 2>> \$LOG_OUTPUT_FILE
+EOF
+		;;
+		watch)
+		cat <<EOF>> "${build_dir}"/root/build.sh
+
+if tarball=\$(find /root/overlay/${package_name}/ -name ${package_name}_${PKG_ORIG_VERSION}.orig.tar.'*') &&
+	[ -d /root/overlay/${package_name}/${package_name}-${PKG_ORIG_VERSION}/debian ]; then
+		rsync -aq /root/overlay/${package_name}/${package_name}-${PKG_ORIG_VERSION} /root/build/
+		cp \$tarball /root/build/
+		cd /root/build/
+		dpkg-source --build ../${package_name}-${PKG_ORIG_VERSION}
+		cd /root/build/${package_name}-${PKG_ORIG_VERSION}
+fi
+EOF
+		;;
+		git)
+		cat <<EOF>> "${build_dir}"/root/build.sh
+
+if [ -d /root/sources/${package_name}/.git ]; then
+	display_alert "Copying sources git to" "/root/build/${package_name}-${PKG_ORIG_VERSION}/" "info"
+	mkdir -p /root/build/${package_name}-${PKG_ORIG_VERSION}
+	rsync -aq /root/sources/"${package_name}/" /root/build/${package_name}-${PKG_ORIG_VERSION}/
+
+elif tarball=\$(find /root/overlay/${package_name}/ -name ${package_name}_${PKG_ORIG_VERSION}.orig.tar.'*'); then
+	display_alert "\$tarball exist" "Extracting" "info"
+	cd /root/build/
+	tar -xaf \$tarball
+fi
+cd ${package_name}-${PKG_ORIG_VERSION}
+EOF
+		;;
+	esac
+
 	cat <<EOF>> "${build_dir}"/root/build.sh
 
-	cd /root/build
+package_builddeps="$package_builddeps"
+if [ -z "\$package_builddeps" ]; then
+	# Calculate build dependencies by a standard dpkg function
+	#echo "\$(dpkg-checkbuilddeps)" >&2
+	package_builddeps="\$(dpkg-checkbuilddeps |& awk -F'dependencies:' '{print \$2}')"
+fi
 
-	if [ -d /root/sources/${package_name}/.git ]; then
-		display_alert "Copying sources"
-		rsync -aq /root/sources/"${package_name}" /root/build/
+if [[ -n "\${package_builddeps}" ]]; then
+	echo "install_pkg_deb verbose \${package_builddeps}" >&2
+	install_pkg_deb verbose \${package_builddeps} $file_linux_libcdev
+fi
 
-	elif [ -f /root/sources/${package_name}/${package_name}-*.tar.gz ]; then
-		display_alert "Tarbal exist" "\$(ls /root/sources/${package_name}/*.tar.*)" "info"
-	fi
-
-	cd /root/build/"${package_name}"
-	# copy overlay / "debianization" files
-	[[ -d "/root/overlay/${package_name}/" ]] && rsync -aq /root/overlay/"${package_name}" /root/build/
-
-	package_builddeps="$package_builddeps"
-	if [ -z "\$package_builddeps" ]; then
-		# Calculate build dependencies by a standard dpkg function
-		#echo "\$(dpkg-checkbuilddeps)" >&2
-		package_builddeps="\$(dpkg-checkbuilddeps |& awk -F":" '{print \$NF}')"
-	fi
-
-	if [[ -n "\${package_builddeps}" ]]; then
-		echo "install_pkg_deb verbose \${package_builddeps}" >&2
-		install_pkg_deb verbose \${package_builddeps} $file_linux_libcdev
-	fi
-
-	# set upstream version
-	[[ -n "${package_upstream_version}" ]] && \\
+# set upstream version
+[[ -n "${package_upstream_version}" ]] && \\
 	debchange --preserve --newversion "${package_upstream_version}" "Import from upstream"
 
-	# set local version
-	# debchange -l~armbian${REVISION}-${builddate}+ "Custom $VENDOR release"
-	debchange -l~${VENDOR}2+ "Custom $VENDOR release"
+# set local version
+# debchange -l~armbian${REVISION}-${builddate}+ "Custom $VENDOR release"
+debchange -l~${VENDOR}2+ "Custom $VENDOR release"
+package_version=\$(dpkg-parsechangelog -S Version -l debian/changelog)
 
-	display_alert "Building package"
-	# Set the number of build threads and certainly send
-	# the standard error stream to the log file.
-	dpkg-buildpackage -b -us -j${NCPU_CHROOT:-2} 2>>\$LOG_OUTPUT_FILE
+display_alert "Building package ${package_name}" "\$package_version" "info"
+# Set the number of build threads and certainly send
+# the standard error stream to the log file.
+dpkg-buildpackage -b -us -j${NCPU_CHROOT:-2} 2>>\$LOG_OUTPUT_FILE
+exit_status=\$?
 
-	if [[ \$? -eq 0 ]] && \\
-		package_version=\$(dpkg-deb -f /root/build/${package_name}_*_${arch}.deb Version); then
+if [[ \$exit_status -eq 0 ]]; then
+	display_alert "Done building source:" "$package_name (\${package_version%-*}) $release/$arch" "ext"
 
-		display_alert "Done building" "$package_name (\$package_version) $release/$arch" "ext"
-		mv /root/build/${package_name}_\${package_version}_${arch}.* /root 2>/dev/null
-		exit 0
-	else
-		display_alert "Failed building" "$package_name $release/$arch" "err"
-		exit 2
-	fi
+	result=\$(
+		find ../ -maxdepth 1 -mindepth 1 -type f
+		)
+	display_alert "Files:\n" "\$result" "line"
+	mv ../{*.deb,*.changes,*.buildinfo} /root #2>/dev/null
+	exit 0
+else
+	display_alert "Failed building" "$package_name $release/$arch" "err"
+	exit 2
+fi
 EOF
 
 	chmod +x "${build_dir}"/root/build.sh
