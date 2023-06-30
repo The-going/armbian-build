@@ -10,6 +10,8 @@
 # https://github.com/armbian/build/
 
 function do_main_configuration() {
+	# $SUDOUSER it is regular user name
+	SUDOUSER=$(awk -F':' '$1 ~ /sudo/{print $NF}' /etc/group)
 
 	# common options
 	# daily beta build contains date in subrevision

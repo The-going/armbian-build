@@ -309,8 +309,8 @@ processing_build_scenario() {
 			) && [ ! -d "${work_dir}"/${package_name}/${package_name}-${package_version%-*}/debian ]; then
 		mkdir -p -m 775 "${work_dir}"/${package_name}
 		check_debian_build_version "${SRC}/packages/deb-build/${package_name}" "${work_dir}/${package_name}"
-		$(cd "${work_dir}/${package_name}"; sudo --group=sudo tar -xaf $PKG_SRC_FILE)
-		sudo --group=sudo cp -r "${SRC}"/packages/deb-build/${package_name}/debian \
+		$(cd "${work_dir}/${package_name}"; sudo --user=$SUDOUSER --group=sudo tar -xaf $PKG_SRC_FILE)
+		sudo --user=$SUDOUSER --group=sudo cp -r "${SRC}"/packages/deb-build/${package_name}/debian \
 			"${work_dir}"/${package_name}/${package_name}-${package_version%-*}/
 		# version=$PKG_ORIG_VERSION
 		method="watch"
@@ -318,8 +318,7 @@ processing_build_scenario() {
 	else
 		display_alert "Attempt to rebuild the system package" "${package_name}" "info"
 		method="src"
-		mkdir -p "${work_dir}/${package_name}"
-		chmod 775 "${work_dir}/${package_name}"
+		mkdir -p -m 775 "${work_dir}/${package_name}"
 	fi
 
 	display_alert "method=:" "${method}" "line"
