@@ -113,16 +113,20 @@ chroot_build_packages() {
 		unset package_repo package_ref package_builddeps \
 			  package_install_chroot package_install_target \
 			  package_version package_upstream_version pkg_target_dir \
-			  package_component "package_builddeps_${release}"
+			  package_component "package_builddeps_${release}" \
+			  change_custom_release
 
 		local pkg_target_dir="${DEB_STORAGE}/${release}/${package_name}"
 		mkdir -p "${pkg_target_dir}"
 
 		# Processing variables for several variants of the build scenario.
-		if [ -f "${work_dir}/${package_name}/config" ]; then
-			source "${work_dir}/${package_name}/config"
-		elif [ -f "${SRC}/packages/deb-build/${package_name}/config" ]; then
-			source "${SRC}/packages/deb-build/${package_name}/config"
+		if [ -f "${work_dir}"/${package_name}/config ]; then
+			source "${work_dir}"/${package_name}/config
+		elif [ -f "${SRC}"/packages/deb-build/${package_name}/config ]; then
+			source "${SRC}"/packages/deb-build/${package_name}/config
+			sudo --user="$SUDOUSER" --group=sudo {
+			mkdir -p "${work_dir}"/${package_name}
+			cp -r "${SRC}"/packages/deb-build/${package_name}/config "${work_dir}"/${package_name}/}
 		fi
 
 		processing_build_scenario
@@ -183,6 +187,7 @@ chroot_build_packages() {
 				--tmpfs=/root/build \
 				--tmpfs=/tmp:mode=777 \
 				--bind "${work_dir}"/:/root/overlay \
+				--bind "${pkg_target_dir}"/:/root/output \
 				--bind-ro "${SRC}"/cache/sources/:/root/sources \
 				$command_line \
 				${PROGRESS_LOG_TO_FILE:+' | tee -a $DEST/${LOG_SUBPATH}/buildpkg.log'} 2>&1 \
@@ -192,7 +197,7 @@ chroot_build_packages() {
 			failed+=("$package_name:$release/$arch")
 		else
 			built_ok+=("$package_name:$release/$arch")
-			mv "${build_dir}"/root/{*.deb,*.changes,*.buildinfo} "${pkg_target_dir}/"
+			#mv "${build_dir}"/root/{*.deb,*.changes,*.buildinfo} "${pkg_target_dir}/"
 		fi
 
 		mv "${build_dir}"/root/build.sh "$DEST/${LOG_SUBPATH}/${package_name}-build.sh.log"
@@ -278,28 +283,40 @@ check_debian_build_version() {
 # package_version=${version}-${localversion}
 #
 processing_build_scenario() {
-
-	if package_version=$(awk '/^Version:/{print $2}' ${work_dir}/${package_name}/*.dsc 2>/dev/null) && \
+	# awk '/^Version:/ {gsub(/[1-9]:||-.*/, "");print $2}' *.dsc
+	# GNU Awk 4.2.1, API: 2.0
+	if package_version=$(
+		awk '/^Version:/ {sub(/[1-9]:/, "");print $2}' \
+			${work_dir}/${package_name}/*.dsc 2>/dev/null
+		) && \
 		[ -f ${work_dir}/${package_name}/${package_name}_${package_version}.debian.tar.* ] && \
 		[ -f ${work_dir}/${package_name}/${package_name}_${package_version%-*}.orig.tar.* ]; then
-			if [ "${package_version%-*}" != "${package_version#*-}" ]; then
-				local version=${package_version%-*}
-				local localversion=${package_version#*-}
-			else
-				local version=${package_version%-*}
-			fi
+		# local version=${package_version%-*}
+		# local localversion=${package_version#*-}
 		method="dsc"
 
-	elif [[ "${package_repo%:*}" == http* ]] && [ -n "$package_ref" ]; then
+	elif [ -n "${package_repo}" ] && [ -n "$package_ref" ]; then
 		method="git"
-		fetch_from_repo "$package_repo" "$package_name" "$package_ref"
-		# TODO
+		waiter_local_git url="$package_repo" name=origin dir=${package_name} "$package_ref"
+		if ! $(declare -pF prebuild 1>&2>/dev/null) ; then
+			echo "# TODO function < prebuild >"
+		fi
+		if package_version=$(
+			dpkg-parsechangelog -S Version \
+				-l "${SRC}"/cache/sources/${package_name}/debian/changelog | \
+				awk '{gsub(/[1-9]:||~.*/, "", $0);print $0}' 2>/dev/null
+			)
+		then
+			PKG_ORIG_VERSION=${package_version%-*}
+		fi
+		#DEBUG
+		#display_alert "package_version=" "$package_version" "warn"
+		#display_alert "PKG_ORIG_VERSION=" "$PKG_ORIG_VERSION" "warn"
 
 	elif package_version=$(
 			dpkg-parsechangelog -S Version \
 				-l "${work_dir}"/${package_name}/${package_name}-*/debian/changelog 2>/dev/null
-			) && [ -f "${work_dir}"/${package_name}/${package_name}_${package_version%-*}.orig.tar.* ] &&
-			[ -f "${work_dir}"/${package_name}/${package_name}-${package_version%-*}/debian/watch ]; then
+			) && [ -f "${work_dir}"/${package_name}/${package_name}-${package_version%-*}/debian/watch ]; then
 		method="watch"
 		check_debian_build_version "${work_dir}/${package_name}/${package_name}-${package_version%-*}"
 
@@ -309,7 +326,7 @@ processing_build_scenario() {
 			) && [ ! -d "${work_dir}"/${package_name}/${package_name}-${package_version%-*}/debian ]; then
 		mkdir -p -m 775 "${work_dir}"/${package_name}
 		check_debian_build_version "${SRC}/packages/deb-build/${package_name}" "${work_dir}/${package_name}"
-		$(cd "${work_dir}/${package_name}"; sudo --user=$SUDOUSER --group=sudo tar -xaf $PKG_SRC_FILE)
+# TODO		$(cd "${work_dir}/${package_name}"; sudo --user=$SUDOUSER --group=sudo tar -xaf $PKG_SRC_FILE)
 		sudo --user=$SUDOUSER --group=sudo cp -r "${SRC}"/packages/deb-build/${package_name}/debian \
 			"${work_dir}"/${package_name}/${package_name}-${package_version%-*}/
 		# version=$PKG_ORIG_VERSION
@@ -318,10 +335,9 @@ processing_build_scenario() {
 	else
 		display_alert "Attempt to rebuild the system package" "${package_name}" "info"
 		method="src"
-		mkdir -p -m 775 "${work_dir}/${package_name}"
 	fi
 
-	display_alert "method=:" "${method}" "line"
+	display_alert "method=:" "${method}" "ext"
 }
 
 # create build script
@@ -340,6 +356,13 @@ create_build_script() {
 
 	$(declare -f install_pkg_deb)
 	EOF
+
+	if $(declare -pF prebuild 1>&2>/dev/null) ; then
+		cat <<-EOF >> "${build_dir}"/root/build.sh
+
+		$(declare -f prebuild)
+		EOF
+	fi
 
 	# distcc is disabled to prevent compilation issues due
 	# to different host and cross toolchain configurations
@@ -364,16 +387,27 @@ cd /root/build/${package_name}-${package_version%-*}
 EOF
 		;;
 		src)
+		# When the source package has a different name than the binary one,
+		# extract the name and version from the source file.
 		cat <<EOF>> "${build_dir}"/root/build.sh
 
 cd /root/build
+display_alert "Get source for package" "${package_name}" "info"
 apt-get source ${package_name}
-if package_version=\$(awk '/^Version:/{print \$2}' ${package_name}*.dsc 2>/dev/null) &&
-	[ -d /root/overlay/${package_name} ];then
-		cp ./{${package_name}*.dsc,${package_name}_*.debian.tar.*,${package_name}_*orig.tar.*} /root/overlay/${package_name}/
-fi
-cd ${package_name}-\${package_version%-*}
-apt-get build-dep -y "${package_name}" 2>> \$LOG_OUTPUT_FILE
+for p in \$(
+	awk '/^Version:/{
+			sub(/[1-9]:/, "", \$2)
+			print "package_version=" \$2}
+		/^Source:/{print "source=" \$2}' *.dsc
+	)
+do
+	eval \$p
+done
+
+display_alert "Install build dependencies" "\${source} (\${package_version%-*})" "info"
+apt-get build-dep -y \${source} 2>> \$LOG_OUTPUT_FILE
+
+cd \${source}-\${package_version%-*}
 EOF
 		;;
 		watch)
@@ -384,7 +418,7 @@ if tarball=\$(find /root/overlay/${package_name}/ -name ${package_name}_${PKG_OR
 		rsync -aq /root/overlay/${package_name}/${package_name}-${PKG_ORIG_VERSION} /root/build/
 		cp \$tarball /root/build/
 		cd /root/build/
-		dpkg-source --build ../${package_name}-${PKG_ORIG_VERSION}
+		dpkg-source --build ${package_name}-${PKG_ORIG_VERSION}
 		cd /root/build/${package_name}-${PKG_ORIG_VERSION}
 fi
 EOF
@@ -392,17 +426,22 @@ EOF
 		git)
 		cat <<EOF>> "${build_dir}"/root/build.sh
 
-if [ -d /root/sources/${package_name}/.git ]; then
+if [ -d /root/sources/${package_name}/.git ] && [ "${PKG_ORIG_VERSION}" != "" ]; then
 	display_alert "Copying sources git to" "/root/build/${package_name}-${PKG_ORIG_VERSION}/" "info"
 	mkdir -p /root/build/${package_name}-${PKG_ORIG_VERSION}
 	rsync -aq /root/sources/"${package_name}/" /root/build/${package_name}-${PKG_ORIG_VERSION}/
-
-elif tarball=\$(find /root/overlay/${package_name}/ -name ${package_name}_${PKG_ORIG_VERSION}.orig.tar.'*'); then
-	display_alert "\$tarball exist" "Extracting" "info"
-	cd /root/build/
-	tar -xaf \$tarball
+else
+	display_alert "Failed find sourse" "/root/sources/${package_name}/.git" "err"
+	exit 1
 fi
-cd ${package_name}-${PKG_ORIG_VERSION}
+
+if \$(declare -pF prebuild 1>&2>/dev/null) ; then
+	cd /root/build/${package_name}-${PKG_ORIG_VERSION}
+	prebuild || exit 1
+fi
+#cd /root/build/
+#dpkg-source --build ${package_name}-${PKG_ORIG_VERSION}
+cd /root/build/${package_name}-${PKG_ORIG_VERSION}
 EOF
 		;;
 	esac
@@ -416,9 +455,9 @@ if [ -z "\$package_builddeps" ]; then
 	package_builddeps="\$(dpkg-checkbuilddeps |& awk -F'dependencies:' '{print \$2}')"
 fi
 
-if [[ -n "\${package_builddeps}" ]]; then
-	echo "install_pkg_deb verbose \${package_builddeps}" >&2
-	install_pkg_deb verbose \${package_builddeps} $file_linux_libcdev
+if [[ -n "\${package_builddeps} sudo" ]]; then
+	echo "install_pkg_deb verbose \${package_builddeps} sudo" >&2
+	install_pkg_deb verbose \${package_builddeps} ${file_linux_libcdev} sudo
 fi
 
 # set upstream version
@@ -426,8 +465,9 @@ fi
 	debchange --preserve --newversion "${package_upstream_version}" "Import from upstream"
 
 # set local version
-# debchange -l~armbian${REVISION}-${builddate}+ "Custom $VENDOR release"
-debchange -l~${VENDOR}2+ "Custom $VENDOR release"
+if ${change_custom_release:-false}; then
+	debchange -l~${VENDOR}2+ "Custom $VENDOR release"
+fi
 package_version=\$(dpkg-parsechangelog -S Version -l debian/changelog)
 
 display_alert "Building package ${package_name}" "\$package_version" "info"
@@ -437,13 +477,13 @@ dpkg-buildpackage -b -us -j${NCPU_CHROOT:-2} 2>>\$LOG_OUTPUT_FILE
 exit_status=\$?
 
 if [[ \$exit_status -eq 0 ]]; then
-	display_alert "Done building source:" "$package_name (\${package_version%-*}) $release/$arch" "ext"
+	display_alert "Done building source:\${source}" "$package_name (\${package_version#*:}) $release/$arch" "ext"
 
 	result=\$(
 		find ../ -maxdepth 1 -mindepth 1 -type f
 		)
-	display_alert "Files:\n" "\$result" "line"
-	mv ../{*.deb,*.changes,*.buildinfo} /root #2>/dev/null
+	display_alert "Move files:\n" "\$result" "line"
+	sudo --group=sudo mv \$result /root/output/ #2>/dev/null
 	exit 0
 else
 	display_alert "Failed building" "$package_name $release/$arch" "err"
