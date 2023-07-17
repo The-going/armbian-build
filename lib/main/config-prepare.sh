@@ -45,8 +45,6 @@ function prepare_and_config_main_build_single() {
 		DEST="${SRC}"/output
 	fi
 
-	interactive_config_prepare_terminal
-
 	# Warnings mitigation
 	[[ -z $LANGUAGE ]] && export LANGUAGE="en_US:en"      # set to english if not set
 	[[ -z $CONSOLE_CHAR ]] && export CONSOLE_CHAR="UTF-8" # set console to UTF-8 if not set
@@ -154,23 +152,6 @@ function prepare_and_config_main_build_single() {
 		REPOSITORY_INSTALL="$(list_of_main_packages)${BUILD_DESKTOP:+,armbian-desktop,armbian-bsp-desktop}"
 
 	do_main_configuration
-
-	# optimize build time with 100% CPU usage
-	CPUS=$(grep -c 'processor' /proc/cpuinfo)
-	if [[ $USEALLCORES != no ]]; then
-
-		CTHREADS="-j$((CPUS + CPUS / 2))"
-
-	else
-
-		CTHREADS="-j1"
-
-	fi
-
-	call_extension_method "post_determine_cthreads" "config_post_determine_cthreads" << 'POST_DETERMINE_CTHREADS'
-*give config a chance modify CTHREADS programatically. A build server may work better with hyperthreads-1 for example.*
-Called early, before any compilation work starts.
-POST_DETERMINE_CTHREADS
 
 	if [[ "$BETA" == "yes" ]]; then
 		IMAGE_TYPE=nightly
