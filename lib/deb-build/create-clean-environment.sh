@@ -80,7 +80,7 @@ create_chroot() {
 	echo "nameserver $NAMESERVER" > "${target_dir}"/etc/resolv.conf
 	rm "${target_dir}"/etc/hosts 2> /dev/null
 	echo "127.0.0.1 localhost" > "${target_dir}"/etc/hosts
-	mkdir -p "${target_dir}"/root/{build,overlay,sources} "${target_dir}"/selinux
+	mkdir -p "${target_dir}"/root/{build,overlay,sources,output} "${target_dir}"/selinux
 	if [[ -L "${target_dir}"/var/lock ]]; then
 		rm -rf "${target_dir}"/var/lock 2> /dev/null
 		mkdir -p "${target_dir}"/var/lock
@@ -101,7 +101,7 @@ create_chroot() {
 	# dependencies. Choose between a clean build environment and a full
 	# development environment.
 	case ${CHROOT_CACHE_VERSION} in
-		clean) list="debhelper devscripts pkg-config lsb-release gawk"
+		clean) list="debhelper devscripts pkg-config lsb-release gawk sudo"
 		;;
 		devel) list="debhelper devscripts pkg-config lsb-release intltool-debian \
 		autoconf autoconf-archive automake m4 dh-autoreconf dh-python dh-make \
@@ -112,7 +112,7 @@ create_chroot() {
 		texlive-latex-recommended texlive-fonts-recommended texlive-lang-cyrillic \
 		texlive-lang-european texlive-lang-french texlive-lang-german \
 		texlive-lang-polish texlive-lang-spanish fonts-dejavu yapps2 patchutils \
-		gpg fakeroot tree mc gawk"
+		gpg fakeroot tree mc nano vim gawk sudo"
 		;;
 	esac
 
