@@ -298,13 +298,15 @@ processing_build_scenario() {
 	elif [ -n "${package_repo}" ] && [ -n "$package_ref" ]; then
 		method="git"
 		waiter_local_git url="$package_repo" name=origin dir=${package_name} "$package_ref"
-		if ! $(declare -pF prebuild 1>&2>/dev/null) ; then
+		if ! $(declare -f prebuild 1>&2>/dev/null) ; then
 			echo "# TODO function < prebuild >"
 		fi
+		# Exclude the epoch and the local version so that the original archive
+		# can be created.
 		if package_version=$(
 			dpkg-parsechangelog -S Version \
 				-l "${SRC}"/cache/sources/${package_name}/debian/changelog | \
-				awk '{gsub(/[1-9]:||~.*/, "", $0);print $0}' 2>/dev/null
+				awk '{gsub(/[1-9]:/, "", $0);print $0}' 2>/dev/null
 			)
 		then
 			PKG_ORIG_VERSION=${package_version%-*}
@@ -327,7 +329,8 @@ processing_build_scenario() {
 		mkdir -p -m 775 "${work_dir}"/${package_name}
 		check_debian_build_version "${SRC}/packages/deb-build/${package_name}" "${work_dir}/${package_name}"
 # TODO		$(cd "${work_dir}/${package_name}"; sudo --user=$SUDOUSER --group=sudo tar -xaf $PKG_SRC_FILE)
-		sudo --user=$SUDOUSER --group=sudo cp -r "${SRC}"/packages/deb-build/${package_name}/debian \
+		sudo --user=$SUDOUSER --group=sudo \
+		rsync -aq "${SRC}"/packages/deb-build/${package_name}/debian \
 			"${work_dir}"/${package_name}/${package_name}-${package_version%-*}/
 		# version=$PKG_ORIG_VERSION
 		method="watch"
@@ -357,7 +360,7 @@ create_build_script() {
 	$(declare -f install_pkg_deb)
 	EOF
 
-	if $(declare -pF prebuild 1>&2>/dev/null) ; then
+	if $(declare -f prebuild 1>&2>/dev/null) ; then
 		cat <<-EOF >> "${build_dir}"/root/build.sh
 
 		$(declare -f prebuild)
@@ -415,11 +418,16 @@ EOF
 
 if tarball=\$(find /root/overlay/${package_name}/ -name ${package_name}_${PKG_ORIG_VERSION}.orig.tar.'*') &&
 	[ -d /root/overlay/${package_name}/${package_name}-${PKG_ORIG_VERSION}/debian ]; then
-		rsync -aq /root/overlay/${package_name}/${package_name}-${PKG_ORIG_VERSION} /root/build/
-		cp \$tarball /root/build/
 		cd /root/build/
-		dpkg-source --build ${package_name}-${PKG_ORIG_VERSION}
+		tar -xaf \$tarball
+		rsync -aq /root/overlay/${package_name}/${package_name}-${PKG_ORIG_VERSION}/debian \
+			${package_name}-${PKG_ORIG_VERSION}/
+		#dpkg-source --build ${package_name}-${PKG_ORIG_VERSION}
 		cd /root/build/${package_name}-${PKG_ORIG_VERSION}
+else
+	display_alert "Failed find sourse" "tarball=\$tarball"
+	display_alert "Or failed find sourse" "${package_name}/${package_name}-${PKG_ORIG_VERSION}/debian"
+	exit 1
 fi
 EOF
 		;;
@@ -435,7 +443,7 @@ else
 	exit 1
 fi
 
-if \$(declare -pF prebuild 1>&2>/dev/null) ; then
+if \$(declare -f prebuild 1>&2>/dev/null) ; then
 	cd /root/build/${package_name}-${PKG_ORIG_VERSION}
 	prebuild || exit 1
 fi
