@@ -101,9 +101,9 @@ create_chroot() {
 	# dependencies. Choose between a clean build environment and a full
 	# development environment.
 	case ${CHROOT_CACHE_VERSION} in
-		clean) list="debhelper devscripts pkg-config lsb-release gawk sudo"
+		clean) list="debhelper devscripts pkg-config lsb-release gawk sudo debian-keyring"
 		;;
-		devel) list="debhelper devscripts pkg-config lsb-release intltool-debian \
+		devel) list="debhelper devscripts pkg-config udev lsb-release intltool-debian \
 		autoconf autoconf-archive automake m4 dh-autoreconf dh-python dh-make \
 		python3-dev dh-sequence-python3 python3-lxml python3-xlib \
 		asciidoc asciidoc-dblatex doxygen graphviz docbook-to-man docbook-utils \
@@ -112,7 +112,7 @@ create_chroot() {
 		texlive-latex-recommended texlive-fonts-recommended texlive-lang-cyrillic \
 		texlive-lang-european texlive-lang-french texlive-lang-german \
 		texlive-lang-polish texlive-lang-spanish fonts-dejavu yapps2 patchutils \
-		gpg fakeroot tree mc nano vim gawk sudo"
+		gpg fakeroot tree mc nano vim gawk sudo debian-keyring"
 		;;
 	esac
 
@@ -120,9 +120,10 @@ create_chroot() {
 		/bin/bash -c "apt-get install \
 		-q -y --no-install-recommends $list"'
 
-	# ignore for "bookworm", "sid"
-	case $release in
-		bullseye | focal | hirsute )
+	# Many packages require the PYTHON=/usr/bin/python3 variable to resolve
+	# paths correctly.
+	case ${CHROOT_CACHE_VERSION} in
+		devel)
 			eval 'LC_ALL=C LANG=C chroot "${target_dir}" \
 			/bin/bash -c "apt-get install python-is-python3"'
 			;;
@@ -150,7 +151,7 @@ create_clean_environment_archive() {
 		"dpkg -l | awk '/^ii/ { print \$2\",\"\$3 }'" > \
 		"${SRC}/cache/buildpkg/${t_name}.list" 2>&1
 
-	display_alert "Create a clean Environment archive" "${t_name}.tar.xz" "info"
+	display_alert "Create a ${3} Environment archive" "${t_name}.tar.xz" "info"
 	(
 		tar -cp --directory="${tmp_dir}/" ${t_name} |
 			pv -p -b -r -s "$(du -sb "${tmp_dir}/${t_name}" | cut -f1)" |
