@@ -1,9 +1,13 @@
 enable_extension "sunxi-tools"
 ARCH=arm64
+
 ATF_TARGET_MAP="PLAT=$ATF_PLAT DEBUG=1 bl31;;build/$ATF_PLAT/debug/bl31.bin"
+ATFBRANCH='commit:0cf5f08a205e4877c9daef5d90e1086643590226'
+
 BOOTDELAY=1
 
 BOOTPATCHDIR='u-boot-sunxi'
+BOOTBRANCH="${BOOTBRANCH:-"tag:v2023.07.02"}"
 BOOTENV_FILE='sunxi.txt'
 UBOOT_TARGET_MAP="${UBOOT_TARGET_MAP:-;;u-boot-sunxi-with-spl.bin}"
 BOOTSCRIPT='boot-sun50i-next.cmd:boot.cmd'
