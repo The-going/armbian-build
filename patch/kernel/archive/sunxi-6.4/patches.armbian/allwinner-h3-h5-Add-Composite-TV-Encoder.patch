@@ -1,11 +1,32 @@
-Credits to sorce https://github.com/robertojguerra/orangepi-zero-full-setup/blob/main/README2.md
-Merged:
-1. sunxi-6.1/0036-wip-h3-h5-cvbs-armbian.patch : makes additions to the "dts", which tells the kernel where are the new devices. Adds kernel code to interact with the tv encoder. With my modifications, now it is applicable to Armbian (this patch came from the LibreElec github).
-    https://github.com/robertojguerra/orangepi-zero-full-setup/blob/main/sunxi-6.1/0036-wip-h3-h5-cvbs-armbian.patch
-2. sunxi-6.1/zzzz2-tv.patch : by Armbian user "gleam2003", adds directives to make sure that the dtbo (device tree binary overlay) is compiled
-    https://github.com/robertojguerra/orangepi-zero-full-setup/blob/main/sunxi-6.1/zzzz2-tv.patch
-3. sunxi-6.1/zzzz3-tv.patch : more additions to the "dts" and "dtsi" (like C include files), which I noticed were included in "yam" patch, but missing from the LibreElec patch
-    https://github.com/robertojguerra/orangepi-zero-full-setup/blob/main/sunxi-6.1/zzzz3-tv.patch
+From 0f49668874cbfe400f71ceb04d5332b27ce4bb6a Mon Sep 17 00:00:00 2001
+From: The <48602507+The-going@users.noreply.github.com>
+Date: Thu, 31 Aug 2023 16:35:57 +0300
+Subject: [PATCH] allwinner h3,h5: Add Composite TV Encoder
+
+Credits to soruce:
+https://github.com/robertojguerra/orangepi-zero-full-setup/blob/main/README2.md
+
+Signed-off-by: The <48602507+The-going@users.noreply.github.com>
+---
+ arch/arm/boot/dts/overlay/Makefile            |  1 +
+ .../boot/dts/overlay/README.sun8i-h3-overlays | 10 ++
+ arch/arm/boot/dts/overlay/sun8i-h3-tve.dts    | 34 +++++++
+ .../boot/dts/sun8i-h2-plus-orangepi-zero.dts  |  4 +
+ arch/arm/boot/dts/sun8i-h3-orangepi-pc.dts    |  4 +
+ arch/arm/boot/dts/sun8i-h3.dtsi               | 22 +++++
+ arch/arm/boot/dts/sunxi-h3-h5.dtsi            | 95 ++++++++++++++++++-
+ .../arm64/boot/dts/allwinner/overlay/Makefile |  1 +
+ .../overlay/README.sun50i-h5-overlays         |  5 +
+ .../dts/allwinner/overlay/sun50i-h5-tve.dts   | 34 +++++++
+ arch/arm64/boot/dts/allwinner/sun50i-h5.dtsi  | 22 +++++
+ drivers/clk/sunxi-ng/ccu-sun8i-h3.c           | 14 ++-
+ drivers/gpu/drm/sun4i/Makefile                |  2 +-
+ drivers/gpu/drm/sun4i/sun4i_tv.c              | 35 ++++++-
+ drivers/gpu/drm/sun4i/sun8i_mixer.c           | 36 ++++++-
+ drivers/gpu/drm/sun4i/sun8i_mixer.h           |  5 +-
+ 16 files changed, 310 insertions(+), 14 deletions(-)
+ create mode 100644 arch/arm/boot/dts/overlay/sun8i-h3-tve.dts
+ create mode 100644 arch/arm64/boot/dts/allwinner/overlay/sun50i-h5-tve.dts
 
 diff --git a/arch/arm/boot/dts/overlay/Makefile b/arch/arm/boot/dts/overlay/Makefile
 index 23f8c2048..b3bd27351 100644
@@ -20,7 +41,7 @@ index 23f8c2048..b3bd27351 100644
  	sun8i-r40-i2c3.dtbo \
  	sun8i-r40-spi-spidev0.dtbo \
 diff --git a/arch/arm/boot/dts/overlay/README.sun8i-h3-overlays b/arch/arm/boot/dts/overlay/README.sun8i-h3-overlays
-index 302973491..a347fe7b0 100644
+index 302973491..124cdb738 100644
 --- a/arch/arm/boot/dts/overlay/README.sun8i-h3-overlays
 +++ b/arch/arm/boot/dts/overlay/README.sun8i-h3-overlays
 @@ -34,6 +34,7 @@ adding fixed software (GPIO) chip selects is possible with a separate overlay
@@ -41,12 +62,12 @@ index 302973491..a347fe7b0 100644
 +Activates Composite TV Encoder
 +
 +Parameters:
-+	Unknown at this stage. 
-+	Maybe none. 
++	Unknown at this stage.
++	Maybe none.
 +	Not sure how to change the mode between PAL/NTSC.
 diff --git a/arch/arm/boot/dts/overlay/sun8i-h3-tve.dts b/arch/arm/boot/dts/overlay/sun8i-h3-tve.dts
 new file mode 100644
-index 000000000..07ba7ba71
+index 000000000..a6272fdbe
 --- /dev/null
 +++ b/arch/arm/boot/dts/overlay/sun8i-h3-tve.dts
 @@ -0,0 +1,34 @@
@@ -55,7 +76,7 @@ index 000000000..07ba7ba71
 +
 +/ {
 +	compatible = "allwinner,sun8i-h3";
-+	
++
 +	fragment@0 {
 +		target = <&de>;
 +		__overlay__ {
@@ -115,10 +136,10 @@ index 624e248e3..01c3a7f76 100644
  	pinctrl-names = "default";
  	pinctrl-0 = <&uart0_pa_pins>;
 diff --git a/arch/arm/boot/dts/sun8i-h3.dtsi b/arch/arm/boot/dts/sun8i-h3.dtsi
-index 1b02a4c3f..5b1158c7a 100644
+index 8c2f59777..35c864fe4 100644
 --- a/arch/arm/boot/dts/sun8i-h3.dtsi
 +++ b/arch/arm/boot/dts/sun8i-h3.dtsi
-@@ -294,6 +294,20 @@ ths: thermal-sensor@1c25000 {
+@@ -295,6 +295,20 @@ ths: thermal-sensor@1c25000 {
  			nvmem-cell-names = "calibration";
  			#thermal-sensor-cells = <0>;
  		};
@@ -139,7 +160,7 @@ index 1b02a4c3f..5b1158c7a 100644
  	};
  
  	thermal-zones {
-@@ -383,6 +397,10 @@ &mbus {
+@@ -384,6 +398,10 @@ &mbus {
  	compatible = "allwinner,sun8i-h3-mbus";
  };
  
@@ -150,7 +171,7 @@ index 1b02a4c3f..5b1158c7a 100644
  &mmc0 {
  	compatible = "allwinner,sun7i-a20-mmc";
  	clocks = <&ccu CLK_BUS_MMC0>,
-@@ -430,3 +448,7 @@ &rtc {
+@@ -431,3 +449,7 @@ &rtc {
  &sid {
  	compatible = "allwinner,sun8i-h3-sid";
  };
@@ -159,7 +180,7 @@ index 1b02a4c3f..5b1158c7a 100644
 +	remote-endpoint = <&tve_in_tcon1>;
 +};
 diff --git a/arch/arm/boot/dts/sunxi-h3-h5.dtsi b/arch/arm/boot/dts/sunxi-h3-h5.dtsi
-index 7946699f4..cb6eb5d71 100644
+index 5a3fb7644..2e211b39b 100644
 --- a/arch/arm/boot/dts/sunxi-h3-h5.dtsi
 +++ b/arch/arm/boot/dts/sunxi-h3-h5.dtsi
 @@ -102,7 +102,7 @@ osc32k: osc32k_clk {
@@ -293,8 +314,83 @@ index 7946699f4..cb6eb5d71 100644
  		mmc0: mmc@1c0f000 {
  			/* compatible and clocks are in per SoC .dtsi file */
  			reg = <0x01c0f000 0x1000>;
+diff --git a/arch/arm64/boot/dts/allwinner/overlay/Makefile b/arch/arm64/boot/dts/allwinner/overlay/Makefile
+index e19b987e3..a555b6e8f 100644
+--- a/arch/arm64/boot/dts/allwinner/overlay/Makefile
++++ b/arch/arm64/boot/dts/allwinner/overlay/Makefile
+@@ -27,6 +27,7 @@ dtbo-$(CONFIG_ARCH_SUNXI) += \
+ 	sun50i-h5-spi-add-cs1.dtbo \
+ 	sun50i-h5-spi-jedec-nor.dtbo \
+ 	sun50i-h5-spi-spidev.dtbo \
++	sun50i-h5-tve.dtbo \
+ 	sun50i-h5-uart1.dtbo \
+ 	sun50i-h5-uart2.dtbo \
+ 	sun50i-h5-uart3.dtbo \
+diff --git a/arch/arm64/boot/dts/allwinner/overlay/README.sun50i-h5-overlays b/arch/arm64/boot/dts/allwinner/overlay/README.sun50i-h5-overlays
+index 1ac7fbcf6..a2ef4427c 100644
+--- a/arch/arm64/boot/dts/allwinner/overlay/README.sun50i-h5-overlays
++++ b/arch/arm64/boot/dts/allwinner/overlay/README.sun50i-h5-overlays
+@@ -26,6 +26,7 @@ adding fixed software (GPIO) chip selects is possible with a separate overlay
+ - spi-add-cs1
+ - spi-jedec-nor
+ - spi-spidev
++- tve
+ - uart1
+ - uart2
+ - uart3
+@@ -170,6 +171,10 @@ param_spidev_max_freq (int)
+ 	Default: 1000000
+ 	Range: 3000 - 100000000
+ 
++### tve
++
++Activates Composite TV Encoder
++
+ ### uart1
+ 
+ Activates serial port 1 (/dev/ttyS1)
+diff --git a/arch/arm64/boot/dts/allwinner/overlay/sun50i-h5-tve.dts b/arch/arm64/boot/dts/allwinner/overlay/sun50i-h5-tve.dts
+new file mode 100644
+index 000000000..73e6e1215
+--- /dev/null
++++ b/arch/arm64/boot/dts/allwinner/overlay/sun50i-h5-tve.dts
+@@ -0,0 +1,34 @@
++/dts-v1/;
++/plugin/;
++
++/ {
++	compatible = "allwinner,sun8i-h5";
++
++	fragment@0 {
++		target = <&de>;
++		__overlay__ {
++			status = "okay";
++		};
++	};
++
++	fragment@1 {
++		target = <&mixer1>;
++		__overlay__ {
++			status = "okay";
++		};
++	};
++
++	fragment@2 {
++		target = <&tcon1>;
++		 __overlay__ {
++			status = "okay";
++		};
++	};
++
++	fragment@3 {
++		target = <&tve>;
++		__overlay__ {
++			status = "okay";
++		};
++	};
++};
 diff --git a/arch/arm64/boot/dts/allwinner/sun50i-h5.dtsi b/arch/arm64/boot/dts/allwinner/sun50i-h5.dtsi
-index f6d970d9b..3df8abe0d 100644
+index 495774030..704c221a8 100644
 --- a/arch/arm64/boot/dts/allwinner/sun50i-h5.dtsi
 +++ b/arch/arm64/boot/dts/allwinner/sun50i-h5.dtsi
 @@ -203,6 +203,20 @@ ths: thermal-sensor@1c25000 {
@@ -318,7 +414,7 @@ index f6d970d9b..3df8abe0d 100644
  	};
  
  	thermal-zones {
-@@ -298,6 +312,10 @@ &mbus {
+@@ -307,6 +321,10 @@ &mbus {
  	compatible = "allwinner,sun50i-h5-mbus";
  };
  
@@ -329,7 +425,7 @@ index f6d970d9b..3df8abe0d 100644
  &mmc0 {
  	compatible = "allwinner,sun50i-h5-mmc",
  		     "allwinner,sun50i-a64-mmc";
-@@ -333,3 +351,7 @@ &rtc {
+@@ -342,3 +360,7 @@ &rtc {
  &sid {
  	compatible = "allwinner,sun50i-h5-sid";
  };
@@ -338,10 +434,10 @@ index f6d970d9b..3df8abe0d 100644
 +	remote-endpoint = <&tve_in_tcon1>;
 +};
 diff --git a/drivers/clk/sunxi-ng/ccu-sun8i-h3.c b/drivers/clk/sunxi-ng/ccu-sun8i-h3.c
-index 4ec8d3ffa..5f689fe10 100644
+index 5e59f441b..6353358bb 100644
 --- a/drivers/clk/sunxi-ng/ccu-sun8i-h3.c
 +++ b/drivers/clk/sunxi-ng/ccu-sun8i-h3.c
-@@ -464,8 +464,18 @@ static SUNXI_CCU_M_WITH_MUX_GATE(tcon_clk, "tcon", tcon_parents,
+@@ -469,8 +469,18 @@ static SUNXI_CCU_M_WITH_MUX_GATE(tcon_clk, "tcon", tcon_parents,
  				 CLK_SET_RATE_PARENT);
  
  static const char * const tve_parents[] = { "pll-de", "pll-periph1" };
@@ -376,7 +472,7 @@ index 492bfd28a..721eddd6a 100644
  sun4i-tcon-y			+= sun4i_crtc.o
  sun4i-tcon-y			+= sun4i_dotclock.o
 diff --git a/drivers/gpu/drm/sun4i/sun4i_tv.c b/drivers/gpu/drm/sun4i/sun4i_tv.c
-index c65f0a89b..e19f26df4 100644
+index 9625a00a4..d909515b5 100644
 --- a/drivers/gpu/drm/sun4i/sun4i_tv.c
 +++ b/drivers/gpu/drm/sun4i/sun4i_tv.c
 @@ -10,6 +10,7 @@
@@ -387,7 +483,7 @@ index c65f0a89b..e19f26df4 100644
  #include <linux/platform_device.h>
  #include <linux/regmap.h>
  #include <linux/reset.h>
-@@ -168,6 +169,11 @@ struct tv_mode {
+@@ -159,6 +160,11 @@ struct tv_mode {
  	const struct resync_parameters	*resync_params;
  };
  
@@ -399,7 +495,7 @@ index c65f0a89b..e19f26df4 100644
  struct sun4i_tv {
  	struct drm_connector	connector;
  	struct drm_encoder	encoder;
-@@ -504,7 +510,7 @@ static const struct regmap_config sun4i_tv_regmap_config = {
+@@ -419,7 +425,7 @@ static const struct regmap_config sun4i_tv_regmap_config = {
  	.reg_bits	= 32,
  	.val_bits	= 32,
  	.reg_stride	= 4,
@@ -408,7 +504,7 @@ index c65f0a89b..e19f26df4 100644
  	.name		= "tv-encoder",
  };
  
-@@ -514,13 +520,19 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
+@@ -429,13 +435,19 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
  	struct platform_device *pdev = to_platform_device(dev);
  	struct drm_device *drm = data;
  	struct sun4i_drv *drv = drm->dev_private;
@@ -428,7 +524,7 @@ index c65f0a89b..e19f26df4 100644
  	tv->drv = drv;
  	dev_set_drvdata(dev, tv);
  
-@@ -557,6 +569,11 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
+@@ -472,6 +484,11 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
  	}
  	clk_prepare_enable(tv->clk);
  
@@ -440,7 +536,7 @@ index c65f0a89b..e19f26df4 100644
  	drm_encoder_helper_add(&tv->encoder,
  			       &sun4i_tv_helper_funcs);
  	ret = drm_simple_encoder_init(drm, &tv->encoder,
-@@ -626,8 +643,22 @@ static int sun4i_tv_remove(struct platform_device *pdev)
+@@ -553,8 +570,22 @@ static int sun4i_tv_remove(struct platform_device *pdev)
  	return 0;
  }
  
@@ -465,7 +561,7 @@ index c65f0a89b..e19f26df4 100644
  };
  MODULE_DEVICE_TABLE(of, sun4i_tv_of_table);
 diff --git a/drivers/gpu/drm/sun4i/sun8i_mixer.c b/drivers/gpu/drm/sun4i/sun8i_mixer.c
-index 9c17bb410..675d8a075 100644
+index e7d8587b1..5324fed86 100644
 --- a/drivers/gpu/drm/sun4i/sun8i_mixer.c
 +++ b/drivers/gpu/drm/sun4i/sun8i_mixer.c
 @@ -35,6 +35,12 @@ struct de2_fmt_info {
@@ -549,78 +645,6 @@ index 68e2741b0..7bc8efca6 100644
  
  #define SUN50I_MIXER_FCE_EN			0x70000
  #define SUN50I_MIXER_PEAK_EN			0x70800
-diff --git a/arch/arm64/boot/dts/allwinner/overlay/Makefile b/arch/arm64/boot/dts/allwinner/overlay/Makefile
-index e19b987e3b03..f3e4c89f8617 100644
---- a/arch/arm64/boot/dts/allwinner/overlay/Makefile
-+++ b/arch/arm64/boot/dts/allwinner/overlay/Makefile
-@@ -27,6 +27,7 @@ dtbo-$(CONFIG_ARCH_SUNXI) += \
- 	sun50i-h5-spi-add-cs1.dtbo \
- 	sun50i-h5-spi-jedec-nor.dtbo \
- 	sun50i-h5-spi-spidev.dtbo \
-+	sun50i-h5-tve.dtbo \
- 	sun50i-h5-uart1.dtbo \
- 	sun50i-h5-uart2.dtbo \
- 	sun50i-h5-uart3.dtbo \
-diff --git a/arch/arm64/boot/dts/allwinner/overlay/README.sun50i-h5-overlays b/arch/arm64/boot/dts/allwinner/overlay/README.sun50i-h5-overlays
-index 1ac7fbcf62d1..a2ef4427c65b 100644
---- a/arch/arm64/boot/dts/allwinner/overlay/README.sun50i-h5-overlays
-+++ b/arch/arm64/boot/dts/allwinner/overlay/README.sun50i-h5-overlays
-@@ -26,6 +26,7 @@ adding fixed software (GPIO) chip selects is possible with a separate overlay
- - spi-add-cs1
- - spi-jedec-nor
- - spi-spidev
-+- tve
- - uart1
- - uart2
- - uart3
-@@ -170,6 +171,10 @@ param_spidev_max_freq (int)
- 	Default: 1000000
- 	Range: 3000 - 100000000
- 
-+### tve
-+
-+Activates Composite TV Encoder
-+
- ### uart1
- 
- Activates serial port 1 (/dev/ttyS1)
-diff --git a/arch/arm64/boot/dts/allwinner/overlay/sun50i-h5-tve.dts b/arch/arm64/boot/dts/allwinner/overlay/sun50i-h5-tve.dts
-new file mode 100644
-index 000000000000..73e6e1215a5a
---- /dev/null
-+++ b/arch/arm64/boot/dts/allwinner/overlay/sun50i-h5-tve.dts
-@@ -0,0 +1,34 @@
-+/dts-v1/;
-+/plugin/;
-+
-+/ {
-+	compatible = "allwinner,sun8i-h5";
-+
-+	fragment@0 {
-+		target = <&de>;
-+		__overlay__ {
-+			status = "okay";
-+		};
-+	};
-+
-+	fragment@1 {
-+		target = <&mixer1>;
-+		__overlay__ {
-+			status = "okay";
-+		};
-+	};
-+
-+	fragment@2 {
-+		target = <&tcon1>;
-+		 __overlay__ {
-+			status = "okay";
-+		};
-+	};
-+
-+	fragment@3 {
-+		target = <&tve>;
-+		__overlay__ {
-+			status = "okay";
-+		};
-+	};
-+};
+-- 
+2.35.3
+
