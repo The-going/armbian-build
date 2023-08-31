@@ -139,6 +139,7 @@ waiter_local_git() {
 
 	if ! $offline; then
 		for t_name in $(git remote show); do
+			display_alert "Fetching" "$t_name" "info"
 			improved_git fetch $t_name
 		done
 	fi
