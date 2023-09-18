@@ -319,7 +319,6 @@
 	patches.megous/mtd-spi-nor-gigadevice-add-support-for-gd25lq128e.patch
 	patches.megous/spi-rockchip-Fix-runtime-PM-and-other-issues.patch
 	patches.megous/drm-rockchip-dw-mipi-dsi-Fix-hsclk-calculation-for-non-burst-vi.patch
-	patches.megous/drm-bridge-dw-mipi-dsi-Fix-enable-disable-of-DSI-controller.patch
 	patches.megous/drm-bridge-dw-mipi-dsi-Tracing.patch
 	patches.megous/drm-panel-hx8394-Add-mode-init-sequence-update-via-firmware-loa.patch
 	patches.megous/drm-panel-hs8394-Instrument-the-panel-driver-s-callbacks.patch
@@ -476,3 +475,5 @@
 	patches.megous/8723cs-Fix-symbol-conflicts-with-rtw88-driver.patch
 	patches.megous/mfs-rk8xxx-core-Remove-extra-rk808-clkout.patch
 	patches.megous/wireless-brcmfmac-Drop-useless-error-messages.patch
+	patches.megous/arm64-dts-rk3399-pinebook-pro-Re-enable-pcie.patch
+	patches.megous/mtd-spi-nor-Add-Alliance-memory-support.patch

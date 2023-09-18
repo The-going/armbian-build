@@ -17,7 +17,7 @@ diff --git a/drivers/media/i2c/Kconfig b/drivers/media/i2c/Kconfig
 index 4e79b9d60e08..09dd43320282 100644
 --- a/drivers/media/i2c/Kconfig
 +++ b/drivers/media/i2c/Kconfig
-@@ -807,6 +807,16 @@ config VIDEO_HM5065
+@@ -811,6 +811,16 @@ config VIDEO_HM5065
  	  This is a V4L2 sensor-level driver for Himax HM5065
  	  5 Mpixel camera.
  
@@ -31,9 +31,9 @@ index 4e79b9d60e08..09dd43320282 100644
 +	  This is a V4L2 sensor-level driver for GalaxyCore GC2145
 +	  2 Mpixel camera.
 +
- endmenu
+ source "drivers/media/i2c/ccs/Kconfig"
+ source "drivers/media/i2c/et8ek8/Kconfig"
  
- menu "Lens drivers"
 diff --git a/drivers/media/i2c/Makefile b/drivers/media/i2c/Makefile
 index 2ea647270f40..c512edf9d09f 100644
 --- a/drivers/media/i2c/Makefile
