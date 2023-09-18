@@ -1,14 +1,14 @@
-From a07f879086e8bb347f11f7b0dbd96f590255ef32 Mon Sep 17 00:00:00 2001
+From 6c12975d4be85cd7d1b9f6812904e38a94feab24 Mon Sep 17 00:00:00 2001
 From: The <48602507+The-going@users.noreply.github.com>
 Date: Sat, 2 Sep 2023 00:32:05 +0300
 Subject: [PATCH] ARM: dts: sun8i-a83t: Add spi0, spi1 node
 
 ---
- arch/arm/boot/dts/sun8i-a83t.dtsi | 37 +++++++++++++++++++++++++++++++
- 1 file changed, 37 insertions(+)
+ arch/arm/boot/dts/sun8i-a83t.dtsi | 39 +++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)
 
 diff --git a/arch/arm/boot/dts/sun8i-a83t.dtsi b/arch/arm/boot/dts/sun8i-a83t.dtsi
-index c41d055d3..ef0f776cc 100644
+index c41d055d3..e19df6bee 100644
 --- a/arch/arm/boot/dts/sun8i-a83t.dtsi
 +++ b/arch/arm/boot/dts/sun8i-a83t.dtsi
 @@ -782,6 +782,16 @@ hdmi_pins: hdmi-pins {
@@ -28,7 +28,7 @@ index c41d055d3..ef0f776cc 100644
  			i2c0_pins: i2c0-pins {
  				pins = "PH0", "PH1";
  				function = "i2c0";
-@@ -1097,6 +1107,33 @@ mbus: dram-controller@1c62000 {
+@@ -1097,6 +1107,35 @@ mbus: dram-controller@1c62000 {
  			#interconnect-cells = <1>;
  		};
  
@@ -38,6 +38,8 @@ index c41d055d3..ef0f776cc 100644
 +			interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 +			clocks = <&ccu CLK_BUS_SPI0>, <&ccu CLK_SPI0>;
 +			clock-names = "ahb", "mod";
++			dmas = <&dma 23>, <&dma 23>;
++			dma-names = "rx", "tx";
 +			pinctrl-names = "default", "default";
 +			pinctrl-0 = <&spi0_pc_pins>;
 +			pinctrl-1 = <&spi0_cs0_pc_pin>;
