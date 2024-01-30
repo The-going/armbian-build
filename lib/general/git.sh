@@ -153,7 +153,7 @@ waiter_local_git() {
 	for var in obj tag commit branch; do
 		eval pval=\$$var
 
-		if [ -n "$pval" ] && [ "$pval" != *HEAD ]; then
+		if [ -n "$pval" ]; then
 			case $var in
 				obj | tag | commit) obj=$pval ;;
 				branch) obj=${name}/$branch ;;
